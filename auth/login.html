@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Entrar · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#F4F4F5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:16px;padding:36px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;justify-content:center}
+.logo-box{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#7C3AED,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:900;color:#fff}
+.logo-name{font-size:1.4rem;font-weight:800;color:#0F0F0F;letter-spacing:-.04em}
+.logo-name span{color:#7C3AED}
+h2{font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:6px}
+.sub{font-size:.78rem;color:#888;text-align:center;margin-bottom:24px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.field label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888}
+.field input{padding:10px 13px;border:1.5px solid #E4E4E7;border-radius:9px;font-family:inherit;font-size:.88rem;outline:none;transition:border .15s}
+.field input:focus{border-color:#7C3AED}
+.btn{width:100%;padding:11px;background:#7C3AED;color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:4px}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.divider{text-align:center;font-size:.72rem;color:#bbb;margin:16px 0;position:relative}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:#e4e4e7}
+.divider span{background:#fff;padding:0 10px;position:relative}
+.link-row{text-align:center;font-size:.78rem;color:#888;margin-top:18px}
+.link-row a{color:#7C3AED;font-weight:600;text-decoration:none}
+.link-row a:hover{text-decoration:underline}
+.error{background:#FEF2F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 12px;font-size:.76rem;color:#B91C1C;margin-bottom:14px;display:none}
+.error.show{display:block}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-box">v</div>
+    <div class="logo-name">vi<span>vr</span></div>
+  </div>
+  <h2>Bem-vindo de volta 👋</h2>
+  <div class="sub">Entre na sua conta para continuar</div>
+
+  <div class="error" id="errEl"></div>
+
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email"/>
+  </div>
+  <div class="field">
+    <label>Senha</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+  </div>
+  <button class="btn" id="btnLogin" onclick="doLogin()">Entrar</button>
+
+  <div class="link-row">
+    Não tem conta? <a href="register.html">Criar conta grátis</a>
+  </div>
+</div>
+
+<script src="../assets/supabase.js"></script>
+<script>
+// If already logged in, redirect to app
+if(vivr.auth.isLoggedIn()){
+  var params = new URLSearchParams(window.location.search);
+  window.location.href = params.get('next') || '../app/';
+}
+
+function doLogin(){
+  var email    = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value;
+  var btn      = document.getElementById('btnLogin');
+  var err      = document.getElementById('errEl');
+
+  if(!email||!password){ showErr('Preencha email e senha.'); return; }
+
+  btn.disabled=true; btn.textContent='Entrando...'; err.classList.remove('show');
+
+  vivr.auth.signIn(email, password).then(function(){
+    var params = new URLSearchParams(window.location.search);
+    window.location.href = params.get('next') || '../app/';
+  }).catch(function(e){
+    showErr('Email ou senha incorretos.');
+    btn.disabled=false; btn.textContent='Entrar';
+  });
+}
+
+function showErr(msg){ var el=document.getElementById('errEl'); el.textContent=msg; el.classList.add('show'); }
+
+document.addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

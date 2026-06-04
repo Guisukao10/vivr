@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Criar conta · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#F4F4F5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:16px;padding:36px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;justify-content:center}
+.logo-box{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#7C3AED,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:900;color:#fff}
+.logo-name{font-size:1.4rem;font-weight:800;color:#0F0F0F;letter-spacing:-.04em}
+.logo-name span{color:#7C3AED}
+h2{font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:5px}
+.sub{font-size:.78rem;color:#888;text-align:center;margin-bottom:22px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:13px}
+.field label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888}
+.field input{padding:10px 13px;border:1.5px solid #E4E4E7;border-radius:9px;font-family:inherit;font-size:.88rem;outline:none;transition:border .15s}
+.field input:focus{border-color:#7C3AED}
+/* Plan picker */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.plan-opt{border:1.5px solid #E4E4E7;border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;text-align:center;background:#fff}
+.plan-opt:hover{border-color:#7C3AED}
+.plan-opt.sel{border-color:#7C3AED;background:#EDE9FE}
+.plan-name{font-size:.82rem;font-weight:700;color:#1a1a1a}
+.plan-opt.sel .plan-name{color:#7C3AED}
+.plan-price{font-size:.7rem;color:#888;margin-top:2px}
+.plan-tags{font-size:.6rem;color:#aaa;margin-top:3px}
+.btn{width:100%;padding:11px;background:#7C3AED;color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link-row{text-align:center;font-size:.78rem;color:#888;margin-top:18px}
+.link-row a{color:#7C3AED;font-weight:600;text-decoration:none}
+.error{background:#FEF2F2;border:1px solid #FECDD3;border-radius:8px;padding:10px 12px;font-size:.76rem;color:#B91C1C;margin-bottom:14px;display:none}
+.error.show{display:block}
+.success{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px;font-size:.8rem;color:#15803D;text-align:center;display:none}
+.success.show{display:block}
+.terms{font-size:.68rem;color:#aaa;text-align:center;margin-top:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-box">v</div>
+    <div class="logo-name">vi<span>vr</span></div>
+  </div>
+  <h2>Criar sua conta ✨</h2>
+  <div class="sub">14 dias grátis · Sem cartão de crédito</div>
+
+  <div class="error" id="errEl"></div>
+  <div class="success" id="succEl">
+    ✅ Conta criada! Verifique seu email para confirmar o cadastro e depois <a href="login.html" style="color:#15803D;font-weight:700">entre aqui</a>.
+  </div>
+
+  <div class="field">
+    <label>Seu nome</label>
+    <input type="text" id="name" placeholder="Guilherme" autocomplete="name"/>
+  </div>
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email"/>
+  </div>
+  <div class="field">
+    <label>Senha (mínimo 6 caracteres)</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="new-password"/>
+  </div>
+
+  <div style="margin-bottom:14px">
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px">Escolha seu plano</div>
+    <div class="plans">
+      <div class="plan-opt sel" id="plan-free" onclick="selectPlan('free')">
+        <div class="plan-name">Gratuito</div>
+        <div class="plan-price">R$ 0/mês</div>
+        <div class="plan-tags">Financeiro + Metas</div>
+      </div>
+      <div class="plan-opt" id="plan-pro" onclick="selectPlan('pro')">
+        <div class="plan-name">Pro ⭐</div>
+        <div class="plan-price">R$ 29/mês</div>
+        <div class="plan-tags">Todos os módulos</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn" id="btnReg" onclick="doRegister()">Criar conta grátis</button>
+
+  <div class="terms">Ao criar sua conta você concorda com os <a href="#" style="color:#7C3AED">Termos de Uso</a> e <a href="#" style="color:#7C3AED">Política de Privacidade</a>.</div>
+
+  <div class="link-row">
+    Já tem conta? <a href="login.html">Entrar</a>
+  </div>
+</div>
+
+<script src="../assets/supabase.js"></script>
+<script>
+var selectedPlan = 'free';
+
+function selectPlan(p){
+  selectedPlan=p;
+  document.getElementById('plan-free').classList.toggle('sel',p==='free');
+  document.getElementById('plan-pro').classList.toggle('sel',p==='pro');
+}
+
+function doRegister(){
+  var name     = document.getElementById('name').value.trim();
+  var email    = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value;
+  var btn      = document.getElementById('btnReg');
+
+  if(!name||!email||!password){ showErr('Preencha todos os campos.'); return; }
+  if(password.length<6){ showErr('Senha deve ter pelo menos 6 caracteres.'); return; }
+
+  btn.disabled=true; btn.textContent='Criando conta...';
+  document.getElementById('errEl').classList.remove('show');
+
+  vivr.auth.signUp(email, password, name).then(function(d){
+    document.getElementById('succEl').classList.add('show');
+    document.querySelector('.card').querySelectorAll('.field, .plans, .btn, .terms').forEach(function(el){ el.style.display='none'; });
+  }).catch(function(e){
+    var msg = e.message||'';
+    if(msg.indexOf('already registered')!==-1||msg.indexOf('already exists')!==-1)
+      showErr('Este email já está cadastrado. <a href="login.html" style="color:#7C3AED;font-weight:600">Entrar →</a>');
+    else showErr('Erro ao criar conta: '+msg);
+    btn.disabled=false; btn.textContent='Criar conta grátis';
+  });
+}
+
+function showErr(msg){ var el=document.getElementById('errEl'); el.innerHTML=msg; el.classList.add('show'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Enter') doRegister(); });
+</script>
+</body>
+</html>

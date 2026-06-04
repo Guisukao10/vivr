@@ -1,0 +1,45 @@
+/* ── Vivr — Shared Styles ── */
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --vivr-purple:#7C3AED;
+  --vivr-purple-light:#EDE9FE;
+  --vivr-dark:#0F0F0F;
+  --vivr-gray:#F4F4F5;
+}
+
+/* Nav */
+.vivr-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 24px;background:#fff;border-bottom:1px solid #e4e4e7;
+  font-family:'Inter',sans-serif;position:sticky;top:0;z-index:50;
+}
+.vivr-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.vivr-logo{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,#7C3AED 0%,#A78BFA 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.82rem;font-weight:900;color:#fff;letter-spacing:-.5px;flex-shrink:0
+}
+.vivr-name{font-size:.92rem;font-weight:800;color:#0F0F0F;letter-spacing:-.03em}
+.vivr-name span{color:#7C3AED}
+.vivr-nav-links{display:flex;align-items:center;gap:2px}
+.vivr-link{
+  padding:5px 10px;border-radius:7px;font-size:.75rem;font-weight:500;
+  color:#71717A;text-decoration:none;transition:all .15s;white-space:nowrap
+}
+.vivr-link:hover{background:#F4F4F5;color:#0F0F0F}
+.vivr-link.active{background:#EDE9FE;color:#7C3AED;font-weight:600}
+.vivr-link.logout{color:#EF4444}
+.vivr-link.logout:hover{background:#FEF2F2}
+.vivr-user-chip{
+  display:flex;align-items:center;gap:7px;padding:4px 10px 4px 6px;
+  background:#F4F4F5;border-radius:20px;font-size:.72rem;font-weight:600;color:#555
+}
+.vivr-avatar{
+  width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#A78BFA);
+  display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex-shrink:0
+}
+@media(max-width:640px){
+  .vivr-link span.nl{display:none}
+  .vivr-link{padding:5px 7px}
+}

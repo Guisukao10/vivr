@@ -1,0 +1,43 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Metas &amp; Objetivos · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../../assets/shared.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
+    <a class="vivr-link" href="../financeiro/">💰 <span class="nl">Financeiro</span></a>
+    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
+    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
+    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
+    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
+    <a class="vivr-link logout" href="#" onclick="vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';})">Sair</a>
+  </div>
+</nav>
+<div class="wrap">
+  <div id="mainPanel"></div>
+</div>
+<div class="modal-bg hidden" id="modalBg">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div id="modalForm"></div>
+  </div>
+</div>
+<script src="../../assets/supabase.js"></script>
+<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="app.js"></script>
+</body>
+</html>

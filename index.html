@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Vivr — Seu sistema operacional de vida</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--p:#7C3AED;--pl:#EDE9FE;--dark:#0F0F0F;--gray:#F4F4F5}
+body{font-family:'Inter',sans-serif;color:var(--dark);background:#fff;overflow-x:hidden}
+
+/* Nav */
+nav{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50;border-bottom:1px solid #f0f0f0}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nl-box{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:.88rem;font-weight:900;color:#fff}
+.nl-name{font-size:1rem;font-weight:800;letter-spacing:-.03em}
+.nl-name span{color:var(--p)}
+nav .links{display:flex;align-items:center;gap:6px}
+nav .links a{padding:6px 13px;border-radius:7px;font-size:.78rem;font-weight:600;text-decoration:none;color:#555;transition:all .15s}
+nav .links a:hover{background:var(--gray)}
+.btn-nav{background:var(--p)!important;color:#fff!important;border-radius:9px!important}
+.btn-nav:hover{opacity:.85}
+
+/* Hero */
+.hero{text-align:center;padding:90px 20px 70px;max-width:760px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:var(--pl);border-radius:20px;padding:5px 14px;font-size:.72rem;font-weight:600;color:var(--p);margin-bottom:22px}
+.hero-badge span{width:7px;height:7px;border-radius:50%;background:var(--p);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+h1{font-size:clamp(2.2rem,6vw,3.8rem);font-weight:900;letter-spacing:-.04em;line-height:1.05;margin-bottom:16px}
+h1 .accent{background:linear-gradient(135deg,#7C3AED,#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:1.05rem;color:#71717A;line-height:1.65;max-width:520px;margin:0 auto 32px}
+.hero-ctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn-primary{padding:13px 28px;background:var(--p);color:#fff;border-radius:11px;font-size:.92rem;font-weight:700;text-decoration:none;transition:opacity .15s;display:inline-block}
+.btn-primary:hover{opacity:.88}
+.btn-ghost{padding:13px 24px;background:#fff;color:#555;border:1.5px solid #E4E4E7;border-radius:11px;font-size:.92rem;font-weight:600;text-decoration:none;transition:all .15s;display:inline-block}
+.btn-ghost:hover{border-color:var(--p);color:var(--p)}
+.hero-note{font-size:.72rem;color:#aaa;margin-top:14px}
+
+/* Features */
+.features{background:var(--gray);padding:80px 24px}
+.section-label{text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--p);margin-bottom:10px}
+.section-title{text-align:center;font-size:clamp(1.6rem,4vw,2.2rem);font-weight:800;letter-spacing:-.03em;margin-bottom:10px}
+.section-sub{text-align:center;font-size:.9rem;color:#888;max-width:500px;margin:0 auto 50px}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:0 auto}
+.feat-card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:24px;transition:all .2s}
+.feat-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.08);transform:translateY(-2px)}
+.fc-icon{font-size:1.6rem;margin-bottom:12px;display:block}
+.fc-title{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.fc-desc{font-size:.78rem;color:#888;line-height:1.55}
+.fc-tag{display:inline-block;font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:7px;background:var(--pl);color:var(--p);margin-top:10px}
+
+/* Pricing */
+.pricing{padding:80px 24px;max-width:720px;margin:0 auto}
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:40px}
+@media(max-width:500px){.plans-grid{grid-template-columns:1fr}}
+.plan-card{border:1.5px solid #E4E4E7;border-radius:16px;padding:28px;position:relative}
+.plan-card.popular{border-color:var(--p);box-shadow:0 0 0 3px var(--pl)}
+.popular-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--p);color:#fff;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 12px;border-radius:20px;white-space:nowrap}
+.plan-name{font-size:.82rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.plan-price{font-size:2.2rem;font-weight:900;letter-spacing:-.04em;margin-bottom:4px}
+.plan-price span{font-size:.85rem;font-weight:500;color:#888}
+.plan-period{font-size:.72rem;color:#aaa;margin-bottom:20px}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+.plan-features li{font-size:.78rem;color:#555;display:flex;align-items:center;gap:8px}
+.plan-features li::before{content:'✓';font-weight:800;color:#15803D;flex-shrink:0}
+.plan-features li.no::before{content:'✗';color:#bbb}
+.plan-features li.no{color:#bbb}
+.btn-plan{display:block;text-align:center;padding:11px;border-radius:9px;font-size:.85rem;font-weight:700;text-decoration:none;transition:all .15s}
+.btn-plan.free{background:var(--gray);color:var(--dark)}
+.btn-plan.free:hover{background:#E4E4E7}
+.btn-plan.pro{background:var(--p);color:#fff}
+.btn-plan.pro:hover{opacity:.88}
+
+/* Footer */
+footer{text-align:center;padding:40px 20px;font-size:.75rem;color:#aaa;border-top:1px solid #f0f0f0}
+footer strong{color:var(--dark)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nl-box">v</div>
+    <span class="nl-name">vi<span>vr</span></span>
+  </a>
+  <div class="links">
+    <a href="#features">Funcionalidades</a>
+    <a href="#pricing">Planos</a>
+    <a href="auth/login.html">Entrar</a>
+    <a href="auth/register.html" class="btn-nav">Começar grátis</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge"><span></span>Seu sistema operacional pessoal</div>
+  <h1>Organize sua vida.<br/><span class="accent">De verdade.</span></h1>
+  <p>Vivr reúne finanças, metas, nutrição, hábitos e saúde em um único sistema integrado — feito para quem leva a própria evolução a sério.</p>
+  <div class="hero-ctas">
+    <a href="auth/register.html" class="btn-primary">Começar grátis agora →</a>
+    <a href="#features" class="btn-ghost">Ver funcionalidades</a>
+  </div>
+  <div class="hero-note">14 dias grátis · Sem cartão de crédito · Cancele quando quiser</div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="section-label">O que você vai ter</div>
+  <div class="section-title">Tudo que você precisa,<br/>em um só lugar</div>
+  <div class="section-sub">Cada módulo funciona sozinho e ainda mais poderoso em conjunto.</div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <span class="fc-icon">💰</span>
+      <div class="fc-title">Controle Financeiro</div>
+      <div class="fc-desc">Gastos, ganhos, planejador mensal com regra 50/20/30, previsão de gastos e simulador de investimentos com juros compostos.</div>
+      <span class="fc-tag">Gratuito</span>
+    </div>
+    <div class="feat-card">
+      <span class="fc-icon">🎯</span>
+      <div class="fc-title">Metas & Objetivos</div>
+      <div class="fc-desc">Hierarquia de metas do sonho de 10 anos até o que você faz hoje. Tudo conectado e com progresso visual.</div>
+      <span class="fc-tag">Gratuito</span>
+    </div>
+    <div class="feat-card">
+      <span class="fc-icon">🥗</span>
+      <div class="fc-title">Nutrição</div>
+      <div class="fc-desc">Diário alimentar com macros, hidratação, metas nutricionais e histórico visual. Integrado com suas metas de saúde.</div>
+      <span class="fc-tag">Pro</span>
+    </div>
+    <div class="feat-card">
+      <span class="fc-icon">✅</span>
+      <div class="fc-title">Hábitos</div>
+      <div class="fc-desc">Tracker com streaks, heatmap estilo GitHub, frequências personalizadas e vinculação com metas.</div>
+      <span class="fc-tag">Pro</span>
+    </div>
+    <div class="feat-card">
+      <span class="fc-icon">❤️</span>
+      <div class="fc-title">Saúde & Bem-estar</div>
+      <div class="fc-desc">Registro de treinos, sono, métricas corporais e check-in de humor diário. Dashboard consolidado do dia.</div>
+      <span class="fc-tag">Pro</span>
+    </div>
+    <div class="feat-card">
+      <span class="fc-icon">☁️</span>
+      <div class="fc-title">Sincronização em nuvem</div>
+      <div class="fc-desc">Seus dados salvos com segurança no Supabase. Acesse de qualquer dispositivo, a qualquer hora.</div>
+      <span class="fc-tag">Todos</span>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing" id="pricing">
+  <div class="section-label">Planos</div>
+  <div class="section-title">Simples e transparente</div>
+  <div class="section-sub">Comece grátis, faça upgrade quando quiser.</div>
+  <div class="plans-grid">
+    <div class="plan-card">
+      <div class="plan-name">Gratuito</div>
+      <div class="plan-price">R$0<span>/mês</span></div>
+      <div class="plan-period">Para sempre gratuito</div>
+      <ul class="plan-features">
+        <li>Controle Financeiro completo</li>
+        <li>Metas & Objetivos</li>
+        <li>Dados na nuvem</li>
+        <li class="no">Nutrição</li>
+        <li class="no">Hábitos</li>
+        <li class="no">Saúde & Bem-estar</li>
+      </ul>
+      <a href="auth/register.html" class="btn-plan free">Começar grátis</a>
+    </div>
+    <div class="plan-card popular">
+      <div class="popular-badge">⭐ Mais popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">R$29<span>/mês</span></div>
+      <div class="plan-period">ou R$249/ano (economia de 28%)</div>
+      <ul class="plan-features">
+        <li>Tudo do plano Gratuito</li>
+        <li>Nutrição + Macros</li>
+        <li>Hábitos + Streaks</li>
+        <li>Saúde & Bem-estar</li>
+        <li>Suporte prioritário</li>
+        <li>14 dias grátis</li>
+      </ul>
+      <a href="auth/register.html" class="btn-plan pro">Começar Pro grátis →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Vivr</strong> · Feito no Brasil 🇧🇷 · Todos os direitos reservados
+</footer>
+
+<script src="assets/supabase.js"></script>
+<script>
+// If logged in, redirect to app
+if(vivr.auth.isLoggedIn()) window.location.href='app/';
+</script>
+</body>
+</html>

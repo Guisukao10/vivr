@@ -1,0 +1,399 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Controle Financeiro · Suks & Giu</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="style.css"/>
+<link rel="stylesheet" href="../assets/shared.css"/>
+</head>
+<body>
+
+<nav class="sgs-nav">
+  <a class="sgs-nav-brand" href="../">
+    <div class="sgs-nav-logo">S&G</div>
+    <span class="sgs-nav-name">Suks &amp; Giu System</span>
+  </a>
+  <div class="sgs-nav-links">
+    <a class="sgs-nav-link active" href="../financeiro/"><span class="nl-icon">💰</span>Financeiro</a>
+    <a class="sgs-nav-link" href="../metas/"><span class="nl-icon">🎯</span>Metas</a>
+    <a class="sgs-nav-link" href="../nutricao/"><span class="nl-icon">🥗</span>Nutrição</a>
+    <a class="sgs-nav-link" href="../">← Home</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<div class="topbar">
+  <h1>Controle Financeiro</h1>
+  <div class="tr">
+    <span id="ts"></span>
+    <button id="btnR">
+      <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      <div class="spin"></div>Atualizar
+    </button>
+  </div>
+</div>
+
+<div id="statusEl">Carregando dados&hellip;</div>
+
+<div id="appEl" style="display:none">
+
+  <div class="filters">
+    <div class="fg"><label>M&ecirc;s</label><select id="fMes"><option value="">Todos</option></select></div>
+    <div class="fg"><label>Respons&aacute;vel</label><select id="fResp"><option value="">Todos</option></select></div>
+    <div class="fg"><label>Forma Pgto</label><select id="fTipo"><option value="">Todas</option></select></div>
+    <div class="fg"><label>Categoria Gasto</label><select id="fCat"><option value="">Todas</option></select></div>
+    <button class="bclr" id="btnClr">&times; Limpar</button>
+  </div>
+
+  <div class="cards" id="cardsEl" style="display:none"></div>
+
+  <div class="tabs" id="tabsEl">
+    <button class="tab on" data-t="main">&#127968; Vis&atilde;o Geral</button>
+    <button class="tab" data-t="gastos">&#128200; Gastos</button>
+    <button class="tab" data-t="ganhos">&#128176; Ganhos</button>
+    <button class="tab" data-t="cross">&#9878; Vs Ganhos</button>
+    <button class="tab" data-t="classif">&#127919; Classifica&ccedil;&atilde;o</button>
+    <button class="tab" data-t="previsao">&#128200; Previs&atilde;o</button>
+    <button class="tab" data-t="invest">&#128181; Investimento</button>
+    <button class="tab" data-t="simulacao">&#128196; Planejador</button>
+    <button class="tab" data-t="lancar">&#9998; Lan&ccedil;ar</button>
+    <button class="tab" data-t="tabela">&#128203; Lan&ccedil;amentos</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="panel main-panel" id="panelMain">
+    <!-- Hero KPIs -->
+    <div class="m-hero" id="mHero"></div>
+    <!-- Row 1: Chart Ganhos vs Gastos | Classificação buckets -->
+    <div class="m-grid col21">
+      <div class="mbox">
+        <div class="mbox-title">Ganhos vs Gastos por M&ecirc;s</div>
+        <div class="ch h200"><canvas id="chMain"></canvas></div>
+      </div>
+      <div class="mbox">
+        <div class="mbox-title">Classifica&ccedil;&atilde;o dos Gastos</div>
+        <div class="m-bucks" id="mBucks"></div>
+        <div style="margin-top:14px" class="ch" style="height:120px"><canvas id="chMainBucks" style="max-height:110px"></canvas></div>
+      </div>
+    </div>
+    <!-- Row 2: Top categorias | Poupança por mês | Forecast + Invest -->
+    <div class="m-grid col3">
+      <div class="mbox">
+        <div class="mbox-title">Top Categorias de Gasto <span class="badge" id="mCatMonth"></span></div>
+        <div class="m-cats" id="mCats"></div>
+      </div>
+      <div class="mbox">
+        <div class="mbox-title">Poupan&ccedil;a por M&ecirc;s</div>
+        <div class="m-sav" id="mSav"></div>
+      </div>
+      <div class="mbox">
+        <div class="mbox-title">Previs&atilde;o Pr&oacute;ximos Meses</div>
+        <div class="m-fc-rows" id="mFc"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0">
+          <div class="mbox-title" style="margin-bottom:8px">Investimento &rarr; 10 anos</div>
+          <div class="m-inv-rows" id="mInv"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GASTOS -->
+  <div class="panel" id="panelGastos" style="display:none">
+    <div class="g2">
+      <div class="box"><div class="st">% por Categoria</div><div id="catPct" class="prows"></div></div>
+      <div class="box">
+        <div class="st">% por Respons&aacute;vel</div>
+        <div class="rbar" id="respBar"></div><div class="rleg" id="respLeg"></div>
+        <div style="height:12px"></div>
+        <div class="st">% por Forma de Pagamento</div>
+        <div id="tipoPct" class="prows"></div>
+      </div>
+    </div>
+    <div class="box"><div class="st">Evolu&ccedil;&atilde;o + Previs&atilde;o Mensal</div><div class="ch h200"><canvas id="chGastos"></canvas></div></div>
+    <div class="box">
+      <div class="st">Comparativo Mensal (gastos reais vs previs&atilde;o)</div>
+      <div id="mcmpGastos" class="mcmp"></div>
+    </div>
+    <div class="box">
+      <div class="st">Gastos por Categoria &times; M&ecirc;s &mdash; Real + Previs&atilde;o Edit&aacute;vel</div>
+      <div class="fc-toolbar" id="fcToolbar" style="display:none">
+        <span>&#9997; <strong>Modo previsão ativo</strong> &mdash; clique em qualquer célula futura (itálico) para editar o valor previsto.</span>
+        <span id="fcOvrCount"></span>
+        <button onclick="fcClearAll();renderGastosTab(filtGastos(),total(filtGastos()))">&#128465; Resetar tudo</button>
+      </div>
+      <div style="overflow-x:auto"><table class="mtx" id="catMonthTable"></table></div>
+    </div>
+  </div>
+
+  <!-- GANHOS -->
+  <div class="panel" id="panelGanhos" style="display:none">
+    <div class="g2">
+      <div class="box"><div class="st">% por Categoria de Ganho</div><div id="gCatPct" class="prows"></div></div>
+      <div class="box">
+        <div class="st">% por Respons&aacute;vel</div>
+        <div class="rbar" id="gRespBar"></div><div class="rleg" id="gRespLeg"></div>
+      </div>
+    </div>
+    <div class="box"><div class="st">Evolu&ccedil;&atilde;o + Previs&atilde;o de Ganhos</div><div class="ch h200"><canvas id="chGanhos"></canvas></div></div>
+    <div class="box">
+      <div class="st">Ganhos por Categoria &times; M&ecirc;s</div>
+      <div style="overflow-x:auto"><table class="mtx" id="ganhoMonthTable"></table></div>
+    </div>
+    <div class="box">
+      <div class="st">Comparativo Mensal de Ganhos</div>
+      <div id="mcmpGanhos" class="mcmp"></div>
+    </div>
+  </div>
+
+  <!-- CROSS -->
+  <div class="panel" id="panelCross" style="display:none">
+    <div class="cards" id="crossCards"></div>
+    <div class="box"><div class="st">Ganhos vs Gastos + Saldo por M&ecirc;s</div><div class="ch h220"><canvas id="chCross"></canvas></div></div>
+    <div class="box">
+      <div class="st">Taxa de Poupan&ccedil;a por M&ecirc;s</div>
+      <div id="savingsCmp" class="mcmp"></div>
+    </div>
+    <div class="g2">
+      <div class="box"><div class="st">Guilherme vs Giulia — Ganhos &times; Gastos</div><div id="respCross" class="prows"></div></div>
+      <div class="box"><div class="st">Detalhamento de Ganhos</div><div id="ganhoDetail" class="prows"></div></div>
+    </div>
+  </div>
+
+  <!-- CLASSIFICAÇÃO -->
+  <div class="panel" id="panelClassif" style="display:none">
+    <div class="bucks" id="bucksEl"></div>
+    <div class="box"><div class="st">Necessidade / Investimento / Lazer por M&ecirc;s</div><div class="ch h200"><canvas id="chClassif"></canvas></div></div>
+    <div class="g2">
+      <div class="box">
+        <div class="st">Detalhamento mensal por bucket</div>
+        <div style="overflow-x:auto"><table class="mtx" id="classMtx"></table></div>
+      </div>
+      <div class="box">
+        <div class="st">Reclassificar Categorias</div>
+        <div style="overflow-x:auto"><table class="cedit" id="catEditor"></table></div>
+        <p style="font-size:.65rem;color:#ccc;margin-top:8px">&#128190; Salvo automaticamente no navegador.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVISÃO -->
+  <div class="panel" id="panelPrevisao" style="display:none">
+    <div class="cards" id="fcCardsEl"></div>
+    <div class="box">
+      <div class="st">Previs&atilde;o de Gastos por Categoria &mdash; Restante do Ano (m&eacute;dia ex. Jan/Fev)</div>
+      <div style="overflow-x:auto"><table class="mtx" id="fcTable"></table></div>
+    </div>
+    <div class="box"><div class="st">Distribui&ccedil;&atilde;o Prevista por Categoria</div><div class="ch h220"><canvas id="chFc"></canvas></div></div>
+  </div>
+
+  <!-- INVESTIMENTO -->
+  <div class="panel" id="panelInvest" style="display:none">
+
+    <!-- Patrimônio atual (toggle) -->
+    <div class="pat-box">
+      <label class="pat-toggle">
+        <input type="checkbox" id="chkPat"/>
+        <span>&#128200; Considerar patrim&ocirc;nio atual j&aacute; guardado</span>
+      </label>
+      <div class="pat-inputs" id="patInputs" style="display:none">
+        <div class="pat-field">
+          <label>Guilherme (R$)</label>
+          <input type="number" id="patG" min="0" step="100" value="0" placeholder="0"/>
+        </div>
+        <div class="pat-field">
+          <label>Giulia (R$)</label>
+          <input type="number" id="patGi" min="0" step="100" value="0" placeholder="0"/>
+        </div>
+        <div class="pat-total">Total: <span id="patTotal">R$&nbsp;0</span></div>
+      </div>
+      <p class="pat-note" id="patNote" style="display:none">&#128161; Valores carregados automaticamente da aba <strong>Dinheiro Guardado</strong>. Edite se quiser simular outro cen&aacute;rio. O saldo inicial rende junto com os aportes mensais.</p>
+    </div>
+
+    <div class="inv-slider">
+      <label>Aporte mensal</label>
+      <input type="range" id="slAporte" min="100" max="5000" step="50" value="500"/>
+      <span class="sv" id="svAporte">R$&nbsp;500</span>
+      <label style="margin-left:12px">Rendimento/mês</label>
+      <input type="range" id="slTaxa" min="0.3" max="2.0" step="0.05" value="0.9"/>
+      <span class="sv" id="svTaxa">0,90%</span>
+      <label style="margin-left:12px">Horizonte</label>
+      <input type="range" id="slAnos" min="1" max="10" step="1" value="10"/>
+      <span class="sv" id="svAnos">10 anos</span>
+    </div>
+    <div class="inv-kpis" id="invKpis"></div>
+    <div class="box">
+      <div class="st">Evolu&ccedil;&atilde;o do Patrim&ocirc;nio ao Longo do Tempo</div>
+      <div class="ch h220"><canvas id="chInvest"></canvas></div>
+    </div>
+    <div class="box">
+      <div class="st">Projeção Anual Detalhada</div>
+      <div style="overflow-x:auto"><table class="inv-yr" id="invYrTable"></table></div>
+      <p class="inv-note" id="invNote"></p>
+    </div>
+  </div>
+
+  <!-- SIMULAÇÃO / PLANEJADOR -->
+  <div class="panel" id="panelSimulacao" style="display:none">
+
+    <!-- Acompanhamento do mês atual -->
+    <div id="acpSection" style="margin-bottom:20px">
+      <div class="acp-header">
+        <div><div class="acp-title" id="acpTitle">Acompanhamento</div><div class="acp-sub" id="acpSub"></div></div>
+        <span style="font-size:.68rem;color:#aaa">&#128190; Planejamento salvo automaticamente no navegador</span>
+      </div>
+      <div class="acp-resume" id="acpResume"></div>
+      <div style="overflow-x:auto"><table class="ttbl" id="acpTable"></table></div>
+    </div>
+    <hr style="border:none;border-top:2px dashed #eee;margin:18px 0"/>
+
+    <!-- Planejador -->
+    <div class="sim-kpis" id="simKpis"></div>
+    <div class="sim-actions">
+      <strong style="font-size:.78rem;color:#555">Planejador de Gastos &mdash;</strong>
+      <button class="sim-btn primary" onclick="simFillAverages()">&#128200; Preencher com médias históricas</button>
+      <button class="sim-btn" onclick="simFillLastMonth()">&#128337; Repetir último mês</button>
+      <button class="sim-btn warn" onclick="simClearAll()">&#128465; Limpar tudo</button>
+      <span id="simSavedMsg" style="font-size:.72rem;color:#15803D;font-weight:600"></span>
+    </div>
+    <div style="overflow-x:auto"><table class="ptbl" id="simTable"></table></div>
+    <div class="sim-progress box" style="margin-top:14px">
+      <div class="st">Distribui&ccedil;&atilde;o Planejada vs Meta Ideal</div>
+      <div id="simProgress"></div>
+    </div>
+    <div class="box" style="margin-top:14px">
+      <div class="st">Gastos Reais por Categoria &times; M&ecirc;s &mdash; Refer&ecirc;ncia (clique para expandir descri&ccedil;&otilde;es)</div>
+      <div style="overflow-x:auto"><table class="mtx" id="catMonthTable2"></table></div>
+    </div>
+  </div>
+
+  <!-- LANÇAR -->
+  <div class="panel" id="panelLancar" style="display:none">
+    <div class="lc-wrap">
+
+      <!-- Script config (collapsible) -->
+      <details class="lc-config" id="lcConfigBox">
+        <summary>&#9881; Configura&ccedil;&atilde;o do Google Apps Script <span class="lc-cfg-status lc-cfg-no" id="lcCfgStatus">N&atilde;o configurado</span></summary>
+        <div class="lc-config-body">
+          <div class="lf">
+            <label>URL do Apps Script (cole aqui ap&oacute;s deploy)</label>
+            <input type="text" id="lcScriptUrl" placeholder="https://script.google.com/macros/s/.../exec"/>
+          </div>
+          <button style="padding:7px 14px;background:#1a1a1a;color:#fff;border:none;border-radius:7px;font-family:inherit;font-size:.75rem;cursor:pointer" onclick="saveScriptUrl()">Salvar URL</button>
+          <p style="font-size:.68rem;color:#aaa;line-height:1.6;margin-top:4px">
+            &#128204; Siga as instru&ccedil;&otilde;es abaixo para gerar a URL e cole aqui. A URL fica salva no navegador.
+          </p>
+        </div>
+      </details>
+
+      <!-- Type toggle -->
+      <div class="lc-type">
+        <button class="on g" id="lcBtnGasto" onclick="setLcType('gasto')">&#128308; Gasto</button>
+        <button id="lcBtnGanho" onclick="setLcType('ganho')">&#128994; Ganho</button>
+      </div>
+
+      <!-- Form -->
+      <div class="lc-form" id="lcForm">
+        <div class="lf">
+          <label>Data *</label>
+          <input type="date" id="lcData"/>
+        </div>
+        <div class="lf">
+          <label>Respons&aacute;vel *</label>
+          <select id="lcResp"></select>
+        </div>
+        <div class="lf lc-full">
+          <label>Descri&ccedil;&atilde;o *</label>
+          <input type="text" id="lcDesc" list="lcDescList" placeholder="Digite ou escolha uma sugest&atilde;o..." autocomplete="off"/>
+          <datalist id="lcDescList"></datalist>
+        </div>
+        <div class="lf">
+          <label>Categoria *</label>
+          <select id="lcCat"></select>
+        </div>
+        <div class="lf" id="lcTipoWrap">
+          <label>Forma de Pagamento</label>
+          <select id="lcTipo"></select>
+        </div>
+        <div class="lf">
+          <label>Valor (R$) *</label>
+          <input type="number" id="lcValor" min="0.01" step="0.01" placeholder="0,00"/>
+        </div>
+        <div class="lf lc-full">
+          <label>Observa&ccedil;&atilde;o</label>
+          <input type="text" id="lcObs" placeholder="Opcional — ex: Parcela 2/10, ref&ecirc;rencia do m&ecirc;s..."/>
+        </div>
+        <div class="lf lc-full">
+          <button class="lc-submit" id="lcSubmit" onclick="submitLancar()">
+            &#10003; Lan&ccedil;ar na Planilha
+          </button>
+          <div class="lc-feedback" id="lcFeedback"></div>
+        </div>
+      </div>
+
+      <!-- Editable suggestions -->
+      <details style="margin-top:16px;background:#F8F8F8;border:1px solid #eee;border-radius:10px;padding:12px 14px">
+        <summary style="font-size:.75rem;font-weight:600;color:#888;cursor:pointer">&#9998; Gerenciar sugest&otilde;es de descri&ccedil;&atilde;o</summary>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <p style="font-size:.68rem;color:#aaa">Sugest&otilde;es que aparecem ao digitar no campo Descri&ccedil;&atilde;o. Geradas automaticamente dos seus dados + as que voc&ecirc; adicionar.</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="lcSugInput" placeholder="Adicionar sugest&atilde;o..." style="flex:1;padding:7px 10px;border:1.5px solid #E5E7EB;border-radius:7px;font-family:inherit;font-size:.82rem"/>
+            <button onclick="addLcSug()" style="padding:7px 14px;background:#1a1a1a;color:#fff;border:none;border-radius:7px;font-family:inherit;font-size:.78rem;cursor:pointer">+ Adicionar</button>
+          </div>
+          <div id="lcSugList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
+        </div>
+      </details>
+
+      <!-- Recent entries -->
+      <div class="lc-hist">
+        <div class="lc-hist-title">&#128336; Lan&ccedil;amentos recentes (este navegador)</div>
+        <div class="lc-hist-list" id="lcHistList"></div>
+      </div>
+
+      <!-- Instructions -->
+      <details style="margin-top:20px">
+        <summary style="font-size:.75rem;font-weight:600;color:#aaa;cursor:pointer">&#128218; Como configurar o Google Apps Script (passo a passo)</summary>
+        <div style="margin-top:12px;font-size:.75rem;line-height:1.8;color:#666;background:#fafafa;padding:14px;border-radius:8px">
+          <ol style="padding-left:18px">
+            <li>Abra sua planilha no Google Sheets</li>
+            <li>Clique em <strong>Extens&otilde;es → Apps Script</strong></li>
+            <li>Apague todo o c&oacute;digo que aparece e cole o c&oacute;digo abaixo</li>
+            <li>Clique em <strong>Implantar → Nova implanta&ccedil;&atilde;o</strong></li>
+            <li>Tipo: <strong>Aplicativo da Web</strong></li>
+            <li>Executar como: <strong>Eu</strong></li>
+            <li>Quem tem acesso: <strong>Qualquer pessoa</strong></li>
+            <li>Clique <strong>Implantar</strong>, autorize e copie a URL gerada</li>
+            <li>Cole a URL no campo acima e clique em <strong>Salvar URL</strong></li>
+          </ol>
+          <div style="margin-top:10px;background:#1a1a1a;color:#e8e8e8;padding:14px;border-radius:8px;font-family:monospace;font-size:.72rem;white-space:pre;overflow-x:auto" id="lcScriptCode"></div>
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  <div class="panel" id="panelTabela" style="display:none">
+    <div style="overflow-x:auto">
+      <table class="dtable">
+        <thead><tr>
+          <th>Data</th><th>Respons&aacute;vel</th><th>Descri&ccedil;&atilde;o</th>
+          <th>Categoria</th><th>Forma</th>
+          <th style="text-align:right">Valor</th><th style="text-align:right">% M&ecirc;s</th>
+        </tr></thead>
+        <tbody id="tbodyEl"></tbody>
+      </table>
+      <div id="noData" class="no-data" style="display:none">Nenhum dado encontrado para o filtro selecionado.</div>
+    </div>
+  </div>
+
+</div><!-- /appEl -->
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

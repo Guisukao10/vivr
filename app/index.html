@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>App · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../assets/shared.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#F4F4F5;min-height:100vh;padding-bottom:40px}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 16px}
+.hero{text-align:center;margin-bottom:32px}
+.hero h1{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
+.hero p{font-size:.85rem;color:#888}
+.greeting em{font-style:normal;color:#7C3AED}
+.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mod-card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:22px;text-decoration:none;color:inherit;transition:all .2s;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.mod-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.09);border-color:#D4D4D8}
+.mod-card.locked{opacity:.6;cursor:default;pointer-events:none}
+.mod-card.locked::after{content:'🔒 Pro';position:absolute;top:12px;right:12px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:#EDE9FE;color:#7C3AED;padding:3px 8px;border-radius:10px}
+.mod-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.mod-title{font-size:.95rem;font-weight:700;letter-spacing:-.02em}
+.mod-desc{font-size:.74rem;color:#888;line-height:1.5;flex:1}
+.mod-tags{display:flex;flex-wrap:wrap;gap:5px}
+.mod-tag{font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:8px;background:#F4F4F5;color:#71717A}
+/* module colors */
+.fin{border-top:3px solid #15803D}.fin .mod-icon{background:#F0FDF4}
+.met{border-top:3px solid #7C3AED}.met .mod-icon{background:#EDE9FE}
+.nut{border-top:3px solid #EA580C}.nut .mod-icon{background:#FFF7ED}
+.hab{border-top:3px solid #9333EA}.hab .mod-icon{background:#FDF4FF}
+.sau{border-top:3px solid #E11D48}.sau .mod-icon{background:#FFF1F2}
+.footer{text-align:center;padding:24px;font-size:.7rem;color:#bbb;margin-top:20px}
+</style>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <div class="vivr-user-chip" id="userChip">
+      <div class="vivr-avatar" id="userAvatar">?</div>
+      <span id="userName">...</span>
+    </div>
+    <a class="vivr-link logout" href="#" onclick="doLogout()">Sair</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="hero">
+    <h1 class="greeting">Olá, <em id="greetName">...</em> 👋</h1>
+    <p>O que você vai acompanhar hoje?</p>
+  </div>
+
+  <div class="modules" id="modules">
+    <a class="mod-card fin" href="financeiro/">
+      <div class="mod-icon">💰</div>
+      <div><div class="mod-title">Financeiro</div>
+      <div class="mod-desc">Gastos, ganhos, orçamento e planejador com regra 50/20/30.</div></div>
+      <div class="mod-tags"><span class="mod-tag">Gastos</span><span class="mod-tag">Planejador</span><span class="mod-tag">Investimento</span></div>
+    </a>
+    <a class="mod-card met" href="metas/">
+      <div class="mod-icon">🎯</div>
+      <div><div class="mod-title">Metas</div>
+      <div class="mod-desc">Do sonho de 10 anos ao que você faz hoje — tudo conectado.</div></div>
+      <div class="mod-tags"><span class="mod-tag">10 Anos</span><span class="mod-tag">Mensal</span><span class="mod-tag">Diário</span></div>
+    </a>
+    <a class="mod-card nut" href="nutricao/" id="mod-nut">
+      <div class="mod-icon">🥗</div>
+      <div><div class="mod-title">Nutrição</div>
+      <div class="mod-desc">Diário alimentar, macros, hidratação e conexão com metas.</div></div>
+      <div class="mod-tags"><span class="mod-tag">Calorias</span><span class="mod-tag">Macros</span><span class="mod-tag">Água</span></div>
+    </a>
+    <a class="mod-card hab" href="habitos/" id="mod-hab">
+      <div class="mod-icon">✅</div>
+      <div><div class="mod-title">Hábitos</div>
+      <div class="mod-desc">Streaks, heatmap e construção de rotina consistente.</div></div>
+      <div class="mod-tags"><span class="mod-tag">Streak</span><span class="mod-tag">Rotina</span><span class="mod-tag">Heatmap</span></div>
+    </a>
+    <a class="mod-card sau" href="saude/" id="mod-sau">
+      <div class="mod-icon">❤️</div>
+      <div><div class="mod-title">Saúde</div>
+      <div class="mod-desc">Treinos, sono, métricas corporais e humor diário.</div></div>
+      <div class="mod-tags"><span class="mod-tag">Treino</span><span class="mod-tag">Sono</span><span class="mod-tag">Peso</span></div>
+    </a>
+  </div>
+</div>
+
+<footer class="footer">Vivr · Seu sistema operacional pessoal</footer>
+
+<script src="../assets/supabase.js"></script>
+<script>
+// Auth guard
+if(!requireAuth('../auth/login.html')) throw '';
+
+var user = currentUser();
+if(user){
+  var name = (user.user_metadata&&user.user_metadata.name) || user.email.split('@')[0];
+  document.getElementById('greetName').textContent = name;
+  document.getElementById('userName').textContent  = name;
+  document.getElementById('userAvatar').textContent= name.charAt(0).toUpperCase();
+
+  // Lock Pro modules for free users
+  // (plan stored in profile — for now all unlocked, add later)
+}
+
+function doLogout(){
+  vivr.auth.signOut().then(function(){ window.location.href='../auth/login.html'; });
+}
+</script>
+</body>
+</html>
