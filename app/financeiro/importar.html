@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Importar extrato · Financeiro · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../../assets/shared.css"/>
+<link rel="stylesheet" href="site-controle.css"/>
+<style>
+.imp-textarea{width:100%;min-height:160px;padding:10px;border:1.5px solid var(--color-border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.78rem;resize:vertical}
+.imp-row-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.imp-row-table th,.imp-row-table td{padding:6px 8px;border-bottom:1px solid var(--color-border);text-align:left}
+.imp-row-table input,.imp-row-table select{width:100%;padding:5px 6px;border:1px solid var(--color-border);border-radius:5px;font-family:inherit;font-size:.76rem}
+.imp-row-table input[type="checkbox"]{width:auto}
+.imp-note{font-size:.72rem;color:var(--color-text-secondary);margin:6px 0 14px}
+.imp-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.imp-summary div{background:var(--color-gray-50);border-radius:8px;padding:8px 14px;font-size:.78rem}
+.imp-summary strong{display:block;font-size:1rem}
+</style>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
+    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
+    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
+    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
+    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
+    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
+    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
+  </div>
+</nav>
+
+<div class="fin-subnav">
+  <a href="index.html">📊 Análise</a>
+  <a href="lancamentos.html">✍️ Lançamentos</a>
+  <a href="cadastros.html">🗂️ Cadastros</a>
+  <a href="planejador.html">📋 Planejador</a>
+  <a href="importar.html" class="on">📥 Importar extrato</a>
+</div>
+
+<div class="content-area">
+  <header class="page-header">
+    <h1>Importar extrato</h1>
+    <p>Cole o texto do extrato (do app do banco, PDF copiado ou CSV) e o sistema identifica data, descrição e valor de cada linha</p>
+  </header>
+
+  <div class="panel" id="stepColar">
+    <h3>1. Cole o extrato</h3>
+    <p class="imp-note">Funciona melhor com uma linha por lançamento, contendo data, descrição e valor — o formato mais comum ao copiar de apps de banco. Exemplo: <code>01/07/2026 UBER TRIP 25,90</code></p>
+    <textarea class="imp-textarea" id="txtExtrato" placeholder="Cole aqui o texto do extrato..."></textarea>
+    <div class="form-group" style="margin-top:12px">
+      <div>
+        <label>Esse extrato é principalmente de</label>
+        <select id="tipoPadrao">
+          <option value="despesa">Gastos (débito/crédito)</option>
+          <option value="receita">Ganhos/recebimentos</option>
+        </select>
+      </div>
+      <div>
+        <label>Forma de pagamento predominante</label>
+        <select id="pagamentoPadrao"></select>
+      </div>
+      <div>
+        <label>Responsável</label>
+        <select id="responsavelPadrao"></select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnAnalisar">Analisar extrato</button>
+  </div>
+
+  <div class="panel" id="stepRevisao" style="display:none">
+    <h3>2. Confira antes de importar</h3>
+    <p class="imp-note">Categoria foi sugerida por palavra-chave — confira e ajuste o que precisar. Desmarque linhas que não são lançamentos de verdade (cabeçalhos, saldo, totais).</p>
+    <div class="imp-summary" id="impSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="imp-row-table" id="tabelaRevisao">
+        <thead><tr><th></th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Tipo</th></tr></thead>
+        <tbody id="corpoRevisao"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn" id="btnVoltar">← Voltar e colar outro texto</button>
+      <button class="btn btn-primary" id="btnImportar">Importar selecionados</button>
+    </div>
+    <div id="impMsg" style="margin-top:10px;font-size:.8rem"></div>
+  </div>
+</div>
+
+<script src="../../assets/supabase.js"></script>
+<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="utils.js"></script>
+<script src="ui.js"></script>
+<script src="storage.js"></script>
+<script src="importar.js"></script>
+<script>document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });</script>
+</body>
+</html>
