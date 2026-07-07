@@ -22,6 +22,27 @@
 .fin-list-bar{flex:1;margin:0 10px;background:var(--color-gray-100);border-radius:5px;height:6px;overflow:hidden}
 .fin-list-bar-fill{height:100%;border-radius:5px;background:var(--color-danger)}
 @media(max-width:820px){.fin-compact-grid{grid-template-columns:1fr}}
+
+/* Veredito — o primeiro número que a pessoa vê deve responder "como estou indo",
+   não pedir pra ela somar 7 cards antes de entender a própria situação. */
+.fin-hero{padding:1.4rem 1.5rem;margin-bottom:1rem;border-radius:12px;border:1px solid var(--color-border)}
+.fin-hero.pos{background:#F0FDF4;border-color:#BBF7D0}
+.fin-hero.neg{background:#FEF2F2;border-color:#FECACA}
+.fin-hero-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:4px}
+.fin-hero-value{font-size:2.1rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.fin-hero.pos .fin-hero-value{color:#15803D}
+.fin-hero.neg .fin-hero-value{color:#B91C1C}
+.fin-hero-sub{font-size:.85rem;color:var(--color-text-secondary);margin-top:6px}
+.fin-hero-breakdown{display:flex;gap:1.6rem;margin-top:14px;flex-wrap:wrap}
+.fin-hero-breakdown div{font-size:.78rem}
+.fin-hero-breakdown strong{display:block;font-size:1rem;font-weight:700}
+
+.cat-bar-row{padding:7px 0;border-bottom:1px solid var(--color-border)}
+.cat-bar-row:last-child{border-bottom:none}
+.cat-bar-top{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px}
+.cat-bar-top .cat-name{font-weight:600}
+.cat-bar-track{background:var(--color-gray-100);border-radius:5px;height:7px;overflow:hidden}
+.cat-bar-fill{height:100%;border-radius:5px;background:var(--color-primary)}
 </style>
 </head>
 <body>
@@ -61,6 +82,8 @@
     <span id="activePeriodInfo" style="font-size:.95rem;color:var(--color-text-secondary)"></span>
   </div>
 
+  <div class="fin-hero" id="finHero"></div>
+
   <div id="summaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem"></div>
 
   <div class="panel" id="metasFinBox" style="display:none;margin-bottom:1rem">
@@ -69,18 +92,13 @@
   </div>
 
   <div class="fin-compact-grid">
+    <div class="panel"><h3>Pra onde foi seu dinheiro</h3><div id="resumoCategoria"></div></div>
     <div class="panel fin-chart-box"><h3>Evolução do saldo</h3><canvas id="chartSaldoEvolucao"></canvas></div>
-    <div class="panel fin-chart-box"><h3>Gastos por categoria</h3><canvas id="chartGastosCategoria"></canvas></div>
   </div>
 
   <div class="fin-compact-grid">
-    <div class="panel"><h3>Resumo por categoria</h3><div id="resumoCategoria"></div></div>
     <div class="panel"><h3>Gastos por responsável</h3><div id="gastosResponsavel"></div></div>
-  </div>
-
-  <div class="fin-compact-grid">
     <div class="panel"><h3>Lançamentos recentes</h3><div id="ultimosLancamentos"></div></div>
-    <div class="panel"><h3>Top 5 gastos</h3><div id="top5Gastos"></div></div>
   </div>
 </div>
 

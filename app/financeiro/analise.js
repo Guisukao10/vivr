@@ -116,6 +116,26 @@ const AnalisePage = (function () {
     return card;
   }
 
+  // O primeiro número que a pessoa vê precisa responder "como estou indo", não pedir
+  // que ela some 7 cards pra descobrir sozinha. Isso é o objetivo do módulo: reduzir a
+  // distância entre "ver o número" e "saber o que fazer com ele".
+  function renderHero(totais, periodo) {
+    const hero = document.getElementById('finHero');
+    if (!hero || !totais) return;
+    const pos = totais.saldoPeriodo >= 0;
+    const labelPeriodo = periodo === 'all' ? 'no total' : 'neste período';
+    hero.className = 'fin-hero ' + (pos ? 'pos' : 'neg');
+    hero.innerHTML = `
+      <div class="fin-hero-label">${pos ? 'Sobrou' : 'Faltou'} ${labelPeriodo}</div>
+      <div class="fin-hero-value">${Utils.formatCurrency(Math.abs(totais.saldoPeriodo))}</div>
+      <div class="fin-hero-sub">${pos ? 'Você ganhou mais do que gastou — dá pra guardar essa diferença.' : 'Você gastou mais do que ganhou — vale olhar onde cortar.'}</div>
+      <div class="fin-hero-breakdown">
+        <div>Entrou<strong>${Utils.formatCurrency(totais.ganhos)}</strong></div>
+        <div>Saiu<strong>${Utils.formatCurrency(totais.gastos)}</strong></div>
+        <div>Saldo acumulado (todo o histórico)<strong>${Utils.formatCurrency(totais.totalGeral)}</strong></div>
+      </div>`;
+  }
+
   function renderCards(totais, periodo, totalRegistros, registrosPeriodo) {
     const container = document.getElementById('summaryCards');
     container.innerHTML = '';
@@ -129,13 +149,8 @@ const AnalisePage = (function () {
       return;
     }
 
-    container.appendChild(buildCard('Saldo total geral', Utils.formatCurrency(totais.totalGeral), 'primary'));
-    container.appendChild(buildCard('Saldo no período', Utils.formatCurrency(totais.saldoPeriodo), totais.saldoPeriodo >= 0 ? 'success' : 'warning'));
-    container.appendChild(buildCard('Ganhos no período', Utils.formatCurrency(totais.ganhos), 'success'));
-    container.appendChild(buildCard('Gastos no período', Utils.formatCurrency(totais.gastos), 'danger'));
-    container.appendChild(buildCard('Média diária gastos', Utils.formatCurrency(totais.mediaDiariaGastos), 'warning'));
-    container.appendChild(buildCard('Maior categoria gasto', totais.maiorCategoria, 'info'));
-    container.appendChild(buildCard('Qtd lançamentos no período', String(totais.totalLancamentosPeriodo), 'info'));
+    container.appendChild(buildCard('Média diária de gastos', Utils.formatCurrency(totais.mediaDiariaGastos), 'warning'));
+    container.appendChild(buildCard('Onde mais gastou', totais.maiorCategoria, 'info'));
   }
 
   function getSeriesPorMes(periodo) {
@@ -180,19 +195,15 @@ const AnalisePage = (function () {
     return new Chart(ctx, { type, data, options });
   }
 
-  // Só 2 gráficos, compactos (max-height via CSS) — o resto da página é direto (cards + listas),
-  // não gráfico grande pra cada corte de dado.
+  // Um gráfico só (tendência do saldo — "estou melhorando?"). Distribuição por
+  // categoria virou lista de barras (renderResumoCategoria): comparar fatias de
+  // pizza de olho é impreciso, uma lista ordenada com % é direta.
   function renderCharts(periodo) {
     Object.values(charts).forEach((c) => c && c.destroy && c.destroy());
     charts = {};
 
     const totais = calculateTotals(filterByPeriodo(getLancamentos(), periodo), getLancamentos(), periodo);
     if (!totais || totais.totalLancamentosPeriodo === 0) return;
-
-    charts.gastosCategoria = mountChart('chartGastosCategoria', 'pie', {
-      labels: Object.keys(totais.gastosPorCategoria),
-      datasets: [{ label: 'Gastos por categoria', data: Object.values(totais.gastosPorCategoria), backgroundColor: ['#ff6b6b', '#fca311', '#3a86ff', '#8d99ae', '#06d6a0'] }],
-    }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } });
 
     const series = getSeriesPorMes(periodo);
     charts.saldoEvolucao = mountChart('chartSaldoEvolucao', 'line', {
@@ -237,46 +248,43 @@ const AnalisePage = (function () {
   function renderRecentAndTop(periodo) {
     const filtrados = filterByPeriodo(getLancamentos(), periodo);
     const ultimos = filtrados.slice().sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 5);
-    const top5 = filtrados.filter((x) => x.tipo === 'despesa').slice().sort((a, b) => b.valor - a.valor).slice(0, 5);
 
-    const renderList = (id, list, emptyText = 'Sem dados.') => {
-      const container = document.getElementById(id);
-      container.innerHTML = '';
-      if (!list.length) { container.textContent = emptyText; return; }
-      const table = document.createElement('table');
-      table.className = 'grid-table small-table';
-      table.innerHTML = '<thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead>';
-      const body = document.createElement('tbody');
-      list.forEach((item) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${Utils.formatDate(item.data)}</td><td>${item.descricao}</td><td>${UI.mapCategoryName(item.categoriaId)}</td><td>${Utils.formatCurrency(item.valor)}</td>`;
-        body.appendChild(tr);
-      });
-      table.appendChild(body);
-      container.appendChild(table);
-    };
-
-    renderList('ultimosLancamentos', ultimos, 'Sem lançamentos no período.');
-    renderList('top5Gastos', top5, 'Sem gastos no período.');
+    const container = document.getElementById('ultimosLancamentos');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!ultimos.length) { container.textContent = 'Sem lançamentos no período.'; return; }
+    const table = document.createElement('table');
+    table.className = 'grid-table small-table';
+    table.innerHTML = '<thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead>';
+    const body = document.createElement('tbody');
+    ultimos.forEach((item) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${Utils.formatDate(item.data)}</td><td>${item.descricao}</td><td>${UI.mapCategoryName(item.categoriaId)}</td><td>${Utils.formatCurrency(item.valor)}</td>`;
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    container.appendChild(table);
   }
 
+  // Lista ordenada com barra e % do total — mais fácil de comparar de relance do que
+  // uma pizza (comparar ângulo de fatia é impreciso) ou uma tabela crua de números.
   function renderResumoCategoria(totais) {
     const container = document.getElementById('resumoCategoria');
     container.innerHTML = '';
     const entries = totais && totais.gastosPorCategoria ? Object.entries(totais.gastosPorCategoria) : [];
     if (!entries.length) { container.textContent = 'Sem gastos no período.'; return; }
 
-    const table = document.createElement('table');
-    table.className = 'grid-table small-table';
-    table.innerHTML = '<thead><tr><th>Categoria</th><th>Total</th></tr></thead>';
-    const body = document.createElement('tbody');
-    entries.sort((a, b) => b[1] - a[1]).forEach(([cat, valor]) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${cat}</td><td>${Utils.formatCurrency(valor)}</td>`;
-      body.appendChild(tr);
-    });
-    table.appendChild(body);
-    container.appendChild(table);
+    entries.sort((a, b) => b[1] - a[1]);
+    const totalGasto = entries.reduce((s, [, v]) => s + v, 0);
+    const max = entries[0][1];
+
+    container.innerHTML = entries.map(([cat, valor]) => {
+      const pct = totalGasto ? Math.round(valor / totalGasto * 100) : 0;
+      return `<div class="cat-bar-row">
+        <div class="cat-bar-top"><span class="cat-name">${cat}</span><span>${Utils.formatCurrency(valor)} · ${pct}%</span></div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${max ? (valor / max * 100) : 0}%"></div></div>
+      </div>`;
+    }).join('');
   }
 
   function renderPeriodInfo(periodo, registrosPeriodo, totalRegistros) {
@@ -294,6 +302,16 @@ const AnalisePage = (function () {
     const totais = calculateTotals(filtered, allLancamentos, selectedPeriod);
 
     renderPeriodInfo(selectedPeriod, filtered.length, allLancamentos.length);
+    const hero = document.getElementById('finHero');
+    if (!allLancamentos.length) {
+      hero.className = 'fin-hero';
+      hero.innerHTML = '<div class="fin-hero-label">Comece por aqui</div><div class="fin-hero-sub" style="margin-top:6px">Nenhum lançamento cadastrado ainda. Registre seus ganhos e gastos pra ver como você está indo.</div>';
+    } else if (!filtered.length) {
+      hero.className = 'fin-hero';
+      hero.innerHTML = '<div class="fin-hero-label">Sem dados neste período</div><div class="fin-hero-sub" style="margin-top:6px">Escolha outro período ou "Todos os períodos".</div>';
+    } else {
+      renderHero(totais, selectedPeriod);
+    }
     renderCards(totais, selectedPeriod, allLancamentos.length, filtered.length);
     renderCharts(selectedPeriod);
     renderGastosPorResponsavel(selectedPeriod);
