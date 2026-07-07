@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Área do Personal · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../../assets/shared.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
+    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-header">
+    <h1 class="page-title">Área do Personal</h1>
+    <p class="page-sub">Gerencie os planos de treino dos seus clientes — sem ver o resto dos dados deles</p>
+  </div>
+
+  <div class="pz-box">
+    <div class="pz-title">Adicionar cliente</div>
+    <p class="pz-note">Peça pro seu cliente gerar um código na aba "Compartilhar com personal" do módulo Saúde dele.</p>
+    <div class="pz-form">
+      <input type="text" id="inpCode" placeholder="Código do cliente" maxlength="6" style="text-transform:uppercase"/>
+      <button id="btnRedeem" class="pz-btn">Adicionar</button>
+    </div>
+    <div id="redeemMsg" class="pz-msg"></div>
+  </div>
+
+  <div id="clientList" class="pz-box">Carregando clientes…</div>
+
+  <div id="clientDetail"></div>
+</div>
+
+<script src="../../assets/supabase.js"></script>
+<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="app.js"></script>
+<script>document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });</script>
+</body>
+</html>

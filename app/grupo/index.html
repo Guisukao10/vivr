@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Hábitos · Vivr</title>
+<title>Grupo · Vivr</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="../../assets/shared.css"/>
 <link rel="stylesheet" href="style.css"/>
@@ -21,24 +21,36 @@
     <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
     <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
     <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
-    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
-    <a class="vivr-link logout" href="#" onclick="vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';})">Sair</a>
+    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
   </div>
 </nav>
+
 <div class="wrap">
-  <div id="mainPanel"></div>
-</div>
-<div class="modal-bg hidden" id="modalBg">
-  <div class="modal">
-    <div class="modal-title">
-      <span id="modalTitle"></span>
-      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+  <div class="page-header">
+    <h1 class="page-title">Grupo</h1>
+    <p class="page-sub">Compartilhe financeiro, metas e hábitos com quem mora com você</p>
+  </div>
+
+  <div class="grp-box">
+    <div class="grp-title">Seu grupo atual</div>
+    <div id="grpInfo">Carregando…</div>
+  </div>
+
+  <div class="grp-box">
+    <div class="grp-title">Entrar em outro grupo</div>
+    <p class="grp-note">Peça o código de convite de quem já usa o vivr. Ao entrar, você escolhe se quer levar seus dados atuais junto.</p>
+    <div class="grp-form">
+      <input type="text" id="inpCode" placeholder="Código (ex: A3F9K2)" maxlength="6" style="text-transform:uppercase"/>
+      <label class="grp-check"><input type="checkbox" id="chkMigrate" checked/> Migrar meus dados atuais para o grupo</label>
+      <button id="btnJoin" class="grp-btn">Entrar no grupo</button>
     </div>
-    <div id="modalForm"></div>
+    <div id="joinMsg" class="grp-msg"></div>
   </div>
 </div>
+
 <script src="../../assets/supabase.js"></script>
 <script>if(!requireAuth('../../auth/login.html')) throw '';</script>
 <script src="app.js"></script>
+<script>document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });</script>
 </body>
 </html>

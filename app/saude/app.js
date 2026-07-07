@@ -197,9 +197,20 @@ function metricsSummary(){
 
 /* ── TREINO ── */
 function renderTreino(){
+  if(!window._treinoAvancadoLoaded){
+    window._treinoAvancadoLoaded = true;
+    loadTreinoAvancado().then(function(){ renderTreinoBody(); });
+    document.getElementById('mainPanel').innerHTML = '<div class="loading">⏳ Carregando...</div>';
+    return;
+  }
+  renderTreinoBody();
+}
+
+function renderTreinoOriginal(){
   var html = renderDateNav();
 
   // Load 14-day history for mini chart
+  html += renderTreinoSubNav();
   html += '<div class="section-panel">'+
     '<div class="sp-header">'+
       '<span class="sp-title">💪 Treinos</span>'+
@@ -551,6 +562,7 @@ window.saveWorkout=saveWorkout; window.saveSleep=saveSleep;
 window.saveMetrics=saveMetrics; window.saveMood=saveMood;
 window.deleteWorkout=deleteWorkout; window.incGoal=incGoal;
 window.pickWkType=pickWkType; window.setRating=setRating;
+window.renderTreinoOriginal=renderTreinoOriginal;
 
 document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});

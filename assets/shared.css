@@ -43,3 +43,15 @@
   .vivr-link span.nl{display:none}
   .vivr-link{padding:5px 7px}
 }
+
+/* Sub-nav de módulo (ex: financeiro com múltiplas páginas) */
+.fin-subnav{
+  display:flex;gap:4px;padding:8px 24px;background:#fafafa;
+  border-bottom:1px solid #eee;font-family:'Inter',sans-serif;overflow-x:auto
+}
+.fin-subnav a{
+  padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:600;
+  color:#71717A;text-decoration:none;white-space:nowrap;transition:all .15s
+}
+.fin-subnav a:hover{background:#F4F4F5;color:#0F0F0F}
+.fin-subnav a.on{background:#EDE9FE;color:#7C3AED}

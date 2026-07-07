@@ -1,0 +1,27 @@
+/* ── Grupo ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:100vh;padding-bottom:60px}
+.wrap{max-width:700px;margin:0 auto;padding:20px 16px}
+
+.page-header{margin-bottom:18px}
+.page-title{font-size:1.15rem;font-weight:700;letter-spacing:-.02em}
+.page-sub{font-size:.72rem;color:#aaa;margin-top:2px}
+
+.grp-box{background:#fff;border:1px solid #eaeaea;border-radius:12px;padding:18px;margin-bottom:14px}
+.grp-title{font-size:.9rem;font-weight:700;margin-bottom:10px}
+.grp-note{font-size:.72rem;color:#999;margin:6px 0}
+
+.grp-code-row{display:flex;align-items:center;justify-content:space-between;background:#F5F3FF;border:1px solid #E9D5FF;border-radius:9px;padding:10px 14px;margin-bottom:8px}
+.grp-code-row span{font-size:.68rem;color:#9333EA;font-weight:600}
+.grp-code-row strong{font-size:1.1rem;letter-spacing:.1em;color:#7C3AED}
+.grp-members{font-size:.78rem;color:#555;margin-top:6px}
+.grp-members span{font-weight:600;color:#1a1a1a}
+
+.grp-form{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.grp-form input[type="text"]{padding:9px 12px;border:1.5px solid #E4E4E7;border-radius:8px;font-family:inherit;font-size:.85rem;outline:none}
+.grp-form input[type="text"]:focus{border-color:#7C3AED}
+.grp-check{display:flex;align-items:center;gap:7px;font-size:.78rem;color:#555}
+.grp-btn{padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
+.grp-btn:hover{opacity:.88}
+.grp-btn:disabled{opacity:.6;cursor:not-allowed}
+.grp-msg{font-size:.75rem;margin-top:8px;color:#15803D}

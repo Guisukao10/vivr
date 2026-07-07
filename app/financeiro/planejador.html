@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Planejador · Financeiro · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="../../assets/shared.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
+    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
+    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
+    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
+    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
+    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
+    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
+  </div>
+</nav>
+
+<div class="fin-subnav">
+  <a href="index.html">📊 Análise</a>
+  <a href="lancamentos.html">✍️ Lançamentos</a>
+  <a href="cadastros.html">🗂️ Cadastros</a>
+  <a href="planejador.html" class="on">📋 Planejador</a>
+</div>
+
+<div class="wrap">
+  <div id="loadingMsg" class="loading">Carregando dados financeiros…</div>
+
+  <div id="pjContent" style="display:none">
+    <div class="tabs">
+      <button class="tab on" data-t="planejador">📋 Planejador 50/20/30</button>
+      <button class="tab" data-t="invest">💰 Simulador de Investimentos</button>
+    </div>
+
+    <!-- PLANEJADOR / ACOMPANHAMENTO -->
+    <div class="panel" id="panelPlanejador">
+      <div id="acpSection" style="margin-bottom:20px">
+        <div class="acp-header">
+          <div><div class="acp-title" id="acpTitle">Acompanhamento</div><div class="acp-sub" id="acpSub"></div></div>
+        </div>
+        <div class="acp-resume" id="acpResume"></div>
+        <div style="overflow-x:auto"><table class="ttbl" id="acpTable"></table></div>
+      </div>
+      <hr style="border:none;border-top:2px dashed #eee;margin:18px 0"/>
+
+      <div class="sim-kpis" id="simKpis"></div>
+      <div class="sim-actions">
+        <strong style="font-size:.78rem;color:#555">Planejador de Gastos &mdash;</strong>
+        <button class="sim-btn primary" id="btnFillAvg">📈 Preencher com médias históricas</button>
+        <button class="sim-btn" id="btnFillLast">🕐 Repetir último mês</button>
+        <button class="sim-btn warn" id="btnClearSim">🗑️ Limpar tudo</button>
+        <span id="simSavedMsg" style="font-size:.72rem;color:#15803D;font-weight:600"></span>
+      </div>
+      <div style="overflow-x:auto"><table class="ptbl" id="simTable"></table></div>
+      <div class="sim-progress box" style="margin-top:14px">
+        <div class="st">Distribuição Planejada vs Meta Ideal</div>
+        <div id="simProgress"></div>
+      </div>
+    </div>
+
+    <!-- SIMULADOR DE INVESTIMENTOS -->
+    <div class="panel" id="panelInvest" style="display:none">
+      <div class="pat-box">
+        <div class="pat-field">
+          <label>Patrimônio já guardado (R$)</label>
+          <input type="number" id="patInicial" min="0" step="100" value="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="inv-slider">
+        <label>Aporte mensal</label>
+        <input type="range" id="slAporte" min="100" max="5000" step="50" value="500"/>
+        <span class="sv" id="svAporte">R$&nbsp;500</span>
+        <label style="margin-left:12px">Rendimento/mês</label>
+        <input type="range" id="slTaxa" min="0.3" max="2.0" step="0.05" value="0.9"/>
+        <span class="sv" id="svTaxa">0,90%</span>
+        <label style="margin-left:12px">Horizonte</label>
+        <input type="range" id="slAnos" min="1" max="10" step="1" value="10"/>
+        <span class="sv" id="svAnos">10 anos</span>
+      </div>
+      <div class="inv-kpis" id="invKpis"></div>
+      <div class="box">
+        <div class="st">Evolução do Patrimônio ao Longo do Tempo</div>
+        <div class="ch h220"><canvas id="chInvest"></canvas></div>
+      </div>
+      <div class="box">
+        <div class="st">Projeção Anual Detalhada</div>
+        <div style="overflow-x:auto"><table class="inv-yr" id="invYrTable"></table></div>
+        <p class="inv-note" id="invNote"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/supabase.js"></script>
+<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="utils.js"></script>
+<script src="ui.js"></script>
+<script src="storage.js"></script>
+<script src="planejador.js"></script>
+<script>document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });</script>
+</body>
+</html>

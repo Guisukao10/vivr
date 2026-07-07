@@ -129,7 +129,18 @@ var vivr = (function(){
     return q;
   }
 
-  return { auth:auth, from:from };
+  /* ── RPC ── */
+  function rpc(fnName, args){
+    return fetch(url + '/rest/v1/rpc/' + fnName, {
+      method: 'POST', headers: headers(), body: JSON.stringify(args||{})
+    }).then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+      return r.headers.get('content-type')&&r.headers.get('content-type').indexOf('json')!==-1
+        ? r.json() : r.text().then(function(){ return null; });
+    });
+  }
+
+  return { auth:auth, from:from, rpc:rpc };
 }());
 
 /* ── Guard: redirect to login if not authenticated ── */

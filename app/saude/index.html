@@ -21,10 +21,12 @@
     <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
     <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
     <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
+    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
     <a class="vivr-link logout" href="#" onclick="vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';})">Sair</a>
   </div>
 </nav>
 <div class="wrap">
+  <div class="sec-tabs" id="secTabs"></div>
   <div id="mainPanel"></div>
 </div>
 <div class="modal-bg hidden" id="modalBg">
@@ -38,6 +40,7 @@
 </div>
 <script src="../../assets/supabase.js"></script>
 <script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="treino.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

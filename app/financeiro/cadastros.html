@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cadastros · Financeiro · Vivr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../../assets/shared.css"/>
+<link rel="stylesheet" href="site-controle.css"/>
+</head>
+<body>
+<nav class="vivr-nav">
+  <a class="vivr-brand" href="../../">
+    <div class="vivr-logo">v</div>
+    <span class="vivr-name">vi<span>vr</span></span>
+  </a>
+  <div class="vivr-nav-links">
+    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
+    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
+    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
+    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
+    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
+    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
+    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
+  </div>
+</nav>
+
+<div class="fin-subnav">
+  <a href="index.html">📊 Análise</a>
+  <a href="lancamentos.html">✍️ Lançamentos</a>
+  <a href="cadastros.html" class="on">🗂️ Cadastros</a>
+  <a href="planejador.html">📋 Planejador</a>
+</div>
+
+<div class="content-area">
+  <header class="page-header">
+    <h1>Cadastros</h1>
+    <p>Categorizar e organizar seus dados</p>
+  </header>
+
+  <section>
+    <div class="tabs-container">
+      <div class="tabs-menu">
+        <button class="tab-button active" data-tab="responsaveis">Responsáveis</button>
+        <button class="tab-button" data-tab="categorias-gastos">Categorias Gastos</button>
+        <button class="tab-button" data-tab="categorias-ganhos">Categorias Ganhos</button>
+        <button class="tab-button" data-tab="subcategorias">Subcategorias</button>
+        <button class="tab-button" data-tab="pagamentos">Pagamentos</button>
+        <button class="tab-button" data-tab="status">Status</button>
+        <button class="tab-button" data-tab="recebimento">Recebimento</button>
+      </div>
+
+      <div id="responsaveis" class="tab-content active panel">
+        <h3>Responsáveis</h3>
+        <div class="form-group">
+          <input type="text" id="nomeResponsavel" placeholder="Nome do responsável">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarResponsavel()">Adicionar</button>
+        </div>
+        <div id="listaResponsaveis"></div>
+      </div>
+
+      <div id="categorias-gastos" class="tab-content panel">
+        <h3>Categorias de Gastos</h3>
+        <div class="form-group">
+          <input type="text" id="nomeCategoriaGasto" placeholder="Nome categoria">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarCategoriaGasto()">Adicionar</button>
+        </div>
+        <div id="listaCategoriaGastos"></div>
+      </div>
+
+      <div id="categorias-ganhos" class="tab-content panel">
+        <h3>Categorias de Ganhos</h3>
+        <div class="form-group">
+          <input type="text" id="nomeCategoriaGanho" placeholder="Nome categoria">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarCategoriaGanho()">Adicionar</button>
+        </div>
+        <div id="listaCategoriaGanhos"></div>
+      </div>
+
+      <div id="subcategorias" class="tab-content panel">
+        <h3>Subcategorias</h3>
+        <div class="form-group">
+          <select id="selectCategoriaSubcat">
+            <option value="">Selecione uma categoria</option>
+          </select>
+          <input type="text" id="nomeSubcategoria" placeholder="Nome subcategoria">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarSubcategoria()">Adicionar</button>
+        </div>
+        <div id="listaSubcategorias"></div>
+      </div>
+
+      <div id="pagamentos" class="tab-content panel">
+        <h3>Tipos de Pagamento</h3>
+        <div class="form-group">
+          <input type="text" id="nomePagamento" placeholder="Tipo (ex: Débito)">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarTipoPagamento()">Adicionar</button>
+        </div>
+        <div id="listaTPagamento"></div>
+      </div>
+
+      <div id="status" class="tab-content panel">
+        <h3>Status</h3>
+        <div class="form-group">
+          <input type="text" id="nomeStatus" placeholder="Status (ex: Pago)">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarStatus()">Adicionar</button>
+        </div>
+        <div id="listaStatus"></div>
+      </div>
+
+      <div id="recebimento" class="tab-content panel">
+        <h3>Tipos de Recebimento</h3>
+        <div class="form-group">
+          <input type="text" id="nomeRecebimento" placeholder="Tipo (ex: Boleto)">
+          <button class="btn btn-primary" onclick="CadastrosPage.adicionarTipoRecebimento()">Adicionar</button>
+        </div>
+        <div id="listaRecebimento"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="../../assets/supabase.js"></script>
+<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
+<script src="utils.js"></script>
+<script src="ui.js"></script>
+<script src="storage.js"></script>
+<script src="cadastros.js"></script>
+<script>
+document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
+StorageService.initFinanceiro().then(function(){ CadastrosPage.init(); }).catch(function(e){ alert('Erro ao carregar: '+e.message); });
+</script>
+</body>
+</html>

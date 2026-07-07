@@ -134,3 +134,34 @@ body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:
 .no-data{text-align:center;padding:20px;color:#ccc;font-size:.78rem}
 .loading{text-align:center;padding:40px;color:#bbb;font-size:.82rem}
 @media(max-width:500px){.mood-display{grid-template-columns:1fr}.mf-row,.mf-row3{grid-template-columns:1fr}}
+
+/* ── Treino avançado ── */
+.tsub-nav{display:flex;gap:0;background:#fff;border:1px solid #eaeaea;border-radius:10px;padding:4px;margin-bottom:14px;overflow-x:auto}
+.tsub-btn{flex:1;padding:7px 10px;border:none;background:transparent;border-radius:7px;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;color:#aaa;transition:all .2s;white-space:nowrap}
+.tsub-btn:hover{color:#555}
+.tsub-btn.on{background:#E11D48;color:#fff}
+
+.rotina-list{display:flex;flex-direction:column;gap:8px}
+.rotina-card{display:flex;align-items:center;gap:10px;background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:12px 14px}
+.rotina-nome{font-size:.85rem;font-weight:700}
+.rotina-meta{font-size:.68rem;color:#999;margin-top:2px}
+
+.dias-pick{display:flex;gap:4px;flex-wrap:wrap}
+.day-opt{padding:5px 9px;border:1.5px solid #E5E7EB;border-radius:6px;font-size:.68rem;font-weight:600;cursor:pointer;color:#888;transition:all .15s;font-family:inherit;background:#fff}
+.day-opt.sel{background:#E11D48;border-color:#E11D48;color:#fff}
+
+.itens-list{display:flex;flex-direction:column;gap:8px}
+.item-rotina{display:flex;gap:6px;align-items:center;background:#f9f9f9;border-radius:8px;padding:8px}
+.item-rotina select{flex:1;padding:6px 8px;border:1.5px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:.75rem}
+.item-rotina input{padding:6px 8px;border:1.5px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:.75rem}
+
+.exercicio-exec{background:#f9f9f9;border-radius:10px;padding:12px;margin-bottom:10px}
+.ee-nome{font-size:.82rem;font-weight:700;margin-bottom:8px}
+.serie-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.serie-row.done{opacity:.6}
+.serie-num{font-size:.7rem;color:#999;width:60px;flex-shrink:0}
+.serie-row input{padding:6px 8px;border:1.5px solid #E5E7EB;border-radius:6px;font-family:inherit;font-size:.75rem}
+.hc-check{border:2px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer;transition:all .15s}
+.hc-check.done{background:#E11D48;border-color:#E11D48;color:#fff}
+.sugestao-form{background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:14px;margin-top:12px}
+.sugestao-form select{padding:7px 10px;border:1.5px solid #E5E7EB;border-radius:7px;font-family:inherit;font-size:.8rem}

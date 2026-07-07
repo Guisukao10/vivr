@@ -1,0 +1,48 @@
+{
+  "name": "Vivr — Personal Life OS",
+  "short_name": "Vivr",
+  "description": "Seu sistema operacional de vida — finanças, metas, saúde, nutrição e hábitos em um só lugar",
+  "start_url": "/vivr/",
+  "scope": "/vivr/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7C3AED",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/vivr/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/vivr/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Financeiro",
+      "url": "/vivr/app/financeiro/",
+      "description": "Controle financeiro"
+    },
+    {
+      "name": "Metas",
+      "url": "/vivr/app/metas/",
+      "description": "Metas & Objetivos"
+    },
+    {
+      "name": "Hábitos",
+      "url": "/vivr/app/habitos/",
+      "description": "Hábitos e streaks"
+    },
+    {
+      "name": "Saúde",
+      "url": "/vivr/app/saude/",
+      "description": "Treinos e bem-estar"
+    }
+  ]
+}
