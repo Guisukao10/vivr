@@ -199,7 +199,10 @@ function metricsSummary(){
 function renderTreino(){
   if(!window._treinoAvancadoLoaded){
     window._treinoAvancadoLoaded = true;
-    loadTreinoAvancado().then(function(){ renderTreinoBody(); });
+    loadTreinoAvancado().then(function(){ renderTreinoBody(); }).catch(function(e){
+      window._treinoAvancadoLoaded = false;
+      document.getElementById('mainPanel').innerHTML = '<div class="loading" style="color:#B91C1C">⚠️ Erro ao carregar treinos: '+e.message+'</div>';
+    });
     document.getElementById('mainPanel').innerHTML = '<div class="loading">⏳ Carregando...</div>';
     return;
   }

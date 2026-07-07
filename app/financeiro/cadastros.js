@@ -247,11 +247,66 @@ const CadastrosPage = (function () {
   }
 
   function renderCategoriaGastos() {
-    renderItemList('listaCategoriaGastos', StorageService.getCategorias().filter((c) => c.tipo === 'despesa'), 'categorias-gastos');
+    renderCategoriasComMeta('listaCategoriaGastos', StorageService.getCategorias().filter((c) => c.tipo === 'despesa'), 'categorias-gastos');
   }
 
   function renderCategoriaGanhos() {
-    renderItemList('listaCategoriaGanhos', StorageService.getCategorias().filter((c) => c.tipo === 'receita'), 'categorias-ganhos');
+    renderCategoriasComMeta('listaCategoriaGanhos', StorageService.getCategorias().filter((c) => c.tipo === 'receita'), 'categorias-ganhos');
+  }
+
+  // Igual ao renderItemList genérico, mas com coluna extra pra vincular a categoria
+  // a uma meta financeira (o progresso da meta passa a ser calculado a partir dos
+  // lançamentos reais dessa categoria, em vez de manual).
+  function renderCategoriasComMeta(containerId, items, entityType) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (!items.length) { container.textContent = 'Nenhum item cadastrado.'; return; }
+
+    const metas = (StorageService.getGoals ? StorageService.getGoals() : []).filter((g) => g.area === 'fin');
+
+    const table = document.createElement('table');
+    table.className = 'grid-table small-table';
+    table.innerHTML = '<thead><tr><th>Nome</th><th>Meta vinculada</th><th>Ação</th></tr></thead>';
+    const body = document.createElement('tbody');
+
+    items.forEach((item) => {
+      const tr = document.createElement('tr');
+      const labelCol = document.createElement('td');
+      labelCol.textContent = item.nome;
+
+      const metaCol = document.createElement('td');
+      const select = document.createElement('select');
+      select.innerHTML = '<option value="">— nenhuma —</option>' +
+        metas.map((g) => `<option value="${g.id}"${g.id === item.goalId ? ' selected' : ''}>${g.title}</option>`).join('');
+      select.onchange = () => vincularMeta(item.id, select.value);
+      metaCol.appendChild(select);
+
+      const actionCol = document.createElement('td');
+      const btnEdit = document.createElement('button');
+      btnEdit.textContent = 'Editar';
+      btnEdit.className = 'btn btn-small btn-info';
+      btnEdit.onclick = () => editarItem(entityType, item);
+      const btnRemove = document.createElement('button');
+      btnRemove.textContent = 'Remover';
+      btnRemove.className = 'btn btn-small btn-danger';
+      btnRemove.onclick = () => removerItem(entityType, item.id, containerId);
+      actionCol.appendChild(btnEdit);
+      actionCol.appendChild(document.createTextNode(' '));
+      actionCol.appendChild(btnRemove);
+
+      tr.appendChild(labelCol);
+      tr.appendChild(metaCol);
+      tr.appendChild(actionCol);
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    container.appendChild(table);
+  }
+
+  function vincularMeta(categoriaId, goalId) {
+    StorageService.updateCategoria(categoriaId, { goalId: goalId || null }).then(() => {
+      UI.showMessage(goalId ? 'Categoria vinculada à meta' : 'Vínculo removido');
+    });
   }
 
   function renderSubcategorias() {

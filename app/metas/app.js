@@ -52,7 +52,8 @@ function loadAll() {
   return Promise.all([
     db.from('goals').order('created_at',{ascending:true}).select('*'),
     db.from('daily_tasks').eq('active','true').order('sort_order',{ascending:true}).select('*'),
-    db.from('daily_checks').eq('date', todayKey()).select('*')
+    db.from('daily_checks').eq('date', todayKey()).select('*'),
+    loadFinancialData()
   ]).then(function(results){
     allGoals = results[0] || [];
     allTasks = results[1] || [];
@@ -66,9 +67,18 @@ function loadAll() {
 }
 
 /* ── Financial connection ── */
-function readFinancialData() {
-  var ganhoOvr = parseFloat(localStorage.getItem('cf_sim_ganho_v1')||'0')||0;
-  return { ganho: ganhoOvr };
+var financialCache = { ganho: 0, metasVinculadas: 0 };
+function loadFinancialData() {
+  // Lê budget_income (renda planejada) e quantas categorias já estão vinculadas a metas —
+  // mesma base de dados do módulo financeiro, sem duplicar lógica.
+  return Promise.all([
+    db.from('budget_income').select('*'),
+    db.from('categorias').select('goal_id')
+  ]).then(function(res){
+    var income = (res[0]||[])[0];
+    financialCache.ganho = income ? Number(income.value) : 0;
+    financialCache.metasVinculadas = (res[1]||[]).filter(function(c){ return c.goal_id; }).length;
+  }).catch(function(){ /* módulo financeiro pode não ter dados ainda — não é erro fatal aqui */ });
 }
 
 /* ── Render ── */
@@ -89,17 +99,16 @@ function renderHorizonTabs() {
 }
 
 function renderConnectionBar() {
-  var fin   = readFinancialData();
   var cur   = allGoals.filter(function(g){ return g.hz===currentHz; });
   var done  = cur.filter(function(g){ return g.progress>=100; }).length;
   var annual= allGoals.filter(function(g){ return g.hz==='anual'; });
   var annDone=annual.filter(function(g){ return g.progress>=100; }).length;
 
   document.getElementById('connBar').innerHTML =
-    conn('💰','Financeiro',fin.ganho>0?brl(fin.ganho)+'/mês':'—',fin.ganho>0?'Receita planejada':'Configure no módulo financeiro','#15803D')+
+    conn('💰','Financeiro',financialCache.ganho>0?brl(financialCache.ganho)+'/mês':'—',financialCache.ganho>0?'Receita planejada':'Configure no planejador','#15803D')+
+    conn('🔗','Conectadas',financialCache.metasVinculadas,financialCache.metasVinculadas>0?'com progresso automático':'nenhuma categoria vinculada ainda','#0891B2')+
     conn('🎯','Metas Ativas',cur.length,'no horizonte atual','#1D4ED8')+
-    conn('✅','Concluídas',done+' / '+cur.length,'horizonte atual','#9333EA')+
-    conn('📅','Metas Anuais',annual.length,annDone+' concluídas','#EA580C');
+    conn('✅','Concluídas',done+' / '+cur.length,'horizonte atual','#9333EA');
 }
 function conn(icon,lbl,val,sub,color){
   return '<div class="conn-card"><div class="conn-dot" style="background:'+color+'"></div>'+

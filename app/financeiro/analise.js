@@ -180,6 +180,8 @@ const AnalisePage = (function () {
     return new Chart(ctx, { type, data, options });
   }
 
+  // Só 2 gráficos, compactos (max-height via CSS) — o resto da página é direto (cards + listas),
+  // não gráfico grande pra cada corte de dado.
   function renderCharts(periodo) {
     Object.values(charts).forEach((c) => c && c.destroy && c.destroy());
     charts = {};
@@ -190,30 +192,46 @@ const AnalisePage = (function () {
     charts.gastosCategoria = mountChart('chartGastosCategoria', 'pie', {
       labels: Object.keys(totais.gastosPorCategoria),
       datasets: [{ label: 'Gastos por categoria', data: Object.values(totais.gastosPorCategoria), backgroundColor: ['#ff6b6b', '#fca311', '#3a86ff', '#8d99ae', '#06d6a0'] }],
-    }, { responsive: true, plugins: { legend: { position: 'bottom' } } });
+    }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } });
 
     const series = getSeriesPorMes(periodo);
-
-    charts.gastosMes = mountChart('chartGastosMes', 'bar', {
-      labels: series.labels,
-      datasets: [{ label: 'Gastos', data: series.despesa, backgroundColor: '#ef476f' }],
-    }, { responsive: true, scales: { y: { beginAtZero: true } } });
-
-    charts.ganhosMes = mountChart('chartGanhosMes', 'bar', {
-      labels: series.labels,
-      datasets: [{ label: 'Ganhos', data: series.receita, backgroundColor: '#2ec4b6' }],
-    }, { responsive: true, scales: { y: { beginAtZero: true } } });
-
     charts.saldoEvolucao = mountChart('chartSaldoEvolucao', 'line', {
       labels: series.labels,
-      datasets: [{ label: 'Saldo', data: series.saldo, borderColor: '#005f73', backgroundColor: 'rgba(0,95,115,0.16)', fill: true }],
-    }, { responsive: true, scales: { y: { beginAtZero: true } } });
+      datasets: [{ label: 'Saldo', data: series.saldo, borderColor: '#005f73', backgroundColor: 'rgba(0,95,115,0.16)', fill: true, tension: 0.3 }],
+    }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } });
+  }
 
+  function renderGastosPorResponsavel(periodo) {
+    const container = document.getElementById('gastosResponsavel');
+    if (!container) return;
     const resp = getComparacaoResponsavel(periodo);
-    charts.gastosResponsavel = mountChart('chartGastosResponsavel', 'bar', {
-      labels: resp.labels,
-      datasets: [{ label: 'Gastos por responsável', data: resp.data, backgroundColor: '#ffb703' }],
-    }, { responsive: true, scales: { y: { beginAtZero: true } } });
+    if (!resp.labels.length) { container.textContent = 'Sem gastos no período.'; return; }
+    const max = Math.max(...resp.data);
+    container.innerHTML = resp.labels.map((lbl, i) => `
+      <div class="fin-list-row">
+        <span>${lbl}</span>
+        <div class="fin-list-bar"><div class="fin-list-bar-fill" style="width:${max ? (resp.data[i] / max * 100) : 0}%"></div></div>
+        <strong>${Utils.formatCurrency(resp.data[i])}</strong>
+      </div>`).join('');
+  }
+
+  // Metas financeiras com categoria vinculada — progresso já veio calculado
+  // (StorageService.sincronizarProgressoMetas roda no boot da página).
+  function renderMetasFinanceiras() {
+    const box = document.getElementById('metasFinBox');
+    const list = document.getElementById('metasFinList');
+    if (!box || !list || !StorageService.getMetasFinanceirasVinculadas) return;
+    const vinculadas = StorageService.getMetasFinanceirasVinculadas();
+    if (!vinculadas.length) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    list.innerHTML = vinculadas.map((v) => {
+      const pct = v.progressoCalculado !== null ? v.progressoCalculado : (v.goal.progress || 0);
+      return `<div class="fin-goal-row">
+        <span class="fin-goal-name">${v.goal.title}</span>
+        <div class="fin-goal-track"><div class="fin-goal-fill" style="width:${pct}%"></div></div>
+        <span class="fin-goal-pct">${pct}%</span>
+      </div>`;
+    }).join('');
   }
 
   function renderRecentAndTop(periodo) {
@@ -278,13 +296,22 @@ const AnalisePage = (function () {
     renderPeriodInfo(selectedPeriod, filtered.length, allLancamentos.length);
     renderCards(totais, selectedPeriod, allLancamentos.length, filtered.length);
     renderCharts(selectedPeriod);
+    renderGastosPorResponsavel(selectedPeriod);
     renderRecentAndTop(selectedPeriod);
     renderResumoCategoria(totais);
+    renderMetasFinanceiras();
   }
 
+  // Módulo precisa abrir mesmo com o banco vazio (conta nova, sem nenhum lançamento
+  // ainda) ou se o Supabase estiver momentaneamente fora do ar — nunca travar em branco.
   function init() {
-    setupPeriodFilter();
-    renderByPeriodo();
+    try {
+      setupPeriodFilter();
+      renderByPeriodo();
+    } catch (e) {
+      const cards = document.getElementById('summaryCards');
+      if (cards) cards.innerHTML = `<div class="panel" style="grid-column:1/-1;color:var(--color-danger)">⚠️ Erro ao montar a tela: ${e.message}</div>`;
+    }
   }
 
   return { init };

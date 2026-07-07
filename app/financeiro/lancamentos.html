@@ -137,7 +137,9 @@
 <script src="lancamentos.js"></script>
 <script>
 document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
-StorageService.initFinanceiro().then(function(){ LancamentosPage.init(); }).catch(function(e){ alert('Erro ao carregar: '+e.message); });
+StorageService.initFinanceiro().then(function(){ LancamentosPage.init(); }).catch(function(e){
+  document.getElementById('lancamentoForm').innerHTML = '<div class="panel" style="color:#B91C1C">⚠️ Não foi possível carregar agora ('+e.message+'). Tente recarregar a página.</div>';
+});
 </script>
 </body>
 </html>

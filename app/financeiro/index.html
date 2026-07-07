@@ -8,6 +8,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="../../assets/shared.css"/>
 <link rel="stylesheet" href="site-controle.css"/>
+<style>
+.fin-compact-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:1rem;margin-bottom:1rem}
+.fin-chart-box canvas{max-height:190px}
+.fin-goal-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border)}
+.fin-goal-row:last-child{border-bottom:none}
+.fin-goal-name{flex:0 0 160px;font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fin-goal-track{flex:1;background:var(--color-gray-100);border-radius:6px;height:8px;overflow:hidden}
+.fin-goal-fill{height:100%;border-radius:6px;background:var(--color-primary)}
+.fin-goal-pct{flex:0 0 40px;text-align:right;font-size:.78rem;font-weight:700;color:var(--color-primary)}
+.fin-list-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:.8rem;border-bottom:1px solid var(--color-border)}
+.fin-list-row:last-child{border-bottom:none}
+.fin-list-bar{flex:1;margin:0 10px;background:var(--color-gray-100);border-radius:5px;height:6px;overflow:hidden}
+.fin-list-bar-fill{height:100%;border-radius:5px;background:var(--color-danger)}
+@media(max-width:820px){.fin-compact-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <nav class="vivr-nav">
@@ -47,22 +62,25 @@
 
   <div id="summaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-    <div class="panel"><h3>Gastos por categoria</h3><canvas id="chartGastosCategoria"></canvas></div>
-    <div class="panel"><h3>Evolução mensal</h3><canvas id="chartSaldoEvolucao"></canvas></div>
+  <div class="panel" id="metasFinBox" style="display:none;margin-bottom:1rem">
+    <h3>🎯 Metas financeiras conectadas</h3>
+    <div id="metasFinList"></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-    <div class="panel"><h3>Gastos no mês</h3><canvas id="chartGastosMes"></canvas></div>
-    <div class="panel"><h3>Ganhos no mês</h3><canvas id="chartGanhosMes"></canvas></div>
+
+  <div class="fin-compact-grid">
+    <div class="panel fin-chart-box"><h3>Evolução do saldo</h3><canvas id="chartSaldoEvolucao"></canvas></div>
+    <div class="panel fin-chart-box"><h3>Gastos por categoria</h3><canvas id="chartGastosCategoria"></canvas></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:1rem">
-    <div class="panel"><h3>Gastos por responsável</h3><canvas id="chartGastosResponsavel"></canvas></div>
+
+  <div class="fin-compact-grid">
+    <div class="panel"><h3>Resumo por categoria</h3><div id="resumoCategoria"></div></div>
+    <div class="panel"><h3>Gastos por responsável</h3><div id="gastosResponsavel"></div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+
+  <div class="fin-compact-grid">
     <div class="panel"><h3>Lançamentos recentes</h3><div id="ultimosLancamentos"></div></div>
     <div class="panel"><h3>Top 5 gastos</h3><div id="top5Gastos"></div></div>
   </div>
-  <div class="panel"><h3>Resumo por categoria</h3><div id="resumoCategoria"></div></div>
 </div>
 
 <script src="../../assets/supabase.js"></script>
@@ -73,7 +91,11 @@
 <script src="analise.js"></script>
 <script>
 document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
-StorageService.initFinanceiro().then(function(){ AnalisePage.init(); }).catch(function(e){ alert('Erro ao carregar: '+e.message); });
+StorageService.initFinanceiro()
+  .then(function(){ return StorageService.sincronizarProgressoMetas(); })
+  .then(function(){ AnalisePage.init(); })
+  .catch(function(e){ document.getElementById('summaryCards').innerHTML =
+    '<div class="panel" style="grid-column:1/-1;color:var(--color-danger)">⚠️ Não foi possível carregar seus dados agora ('+e.message+'). Tente recarregar a página.</div>'; });
 </script>
 </body>
 </html>

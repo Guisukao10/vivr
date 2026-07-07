@@ -127,7 +127,9 @@
 <script src="cadastros.js"></script>
 <script>
 document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
-StorageService.initFinanceiro().then(function(){ CadastrosPage.init(); }).catch(function(e){ alert('Erro ao carregar: '+e.message); });
+StorageService.initFinanceiro().then(function(){ CadastrosPage.init(); }).catch(function(e){
+  document.querySelector('.tabs-container').innerHTML = '<div class="panel" style="color:#B91C1C">⚠️ Não foi possível carregar os cadastros agora ('+e.message+'). Tente recarregar a página.</div>';
+});
 </script>
 </body>
 </html>

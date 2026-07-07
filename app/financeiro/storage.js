@@ -15,7 +15,8 @@ var _cache = {
   tiposPagamento: [],
   lancamentos: [],
   budgetPlan: [],
-  budgetIncome: null // {id, value} ou null
+  budgetIncome: null, // {id, value} ou null
+  goals: []
 };
 
 var TABLES = {
@@ -37,13 +38,15 @@ function initFinanceiro(){
     db.from(TABLES.tiposPagamento).select('*'),
     db.from(TABLES.lancamentos).order('data',{ascending:false}).select('*'),
     db.from('budget_plan').select('*'),
-    db.from('budget_income').select('*')
+    db.from('budget_income').select('*'),
+    db.from('goals').select('id,title,area,progress,target,hz')
   ]).then(function(res){
-    _cache.categorias = res[0]||[];
+    _cache.categorias = (res[0]||[]).map(decorateCategoria);
     _cache.subcategorias = (res[1]||[]).map(decorateSubcategoria);
     _cache.responsaveis = res[2]||[];
     _cache.status = res[3]||[];
     _cache.tiposPagamento = res[4]||[];
+    _cache.goals = res[8]||[];
     _cache.lancamentos = (res[5]||[]).map(normalizeEntryLocal);
     _cache.budgetPlan = res[6]||[];
     _cache.budgetIncome = (res[7]||[])[0]||null;
@@ -54,6 +57,13 @@ function initFinanceiro(){
 function decorateSubcategoria(row){
   if (!row) return row;
   row.categoriaId = row.categoria_id;
+  return row;
+}
+
+// categorias: expõe alias camelCase goalId em cima da coluna goal_id
+function decorateCategoria(row){
+  if (!row) return row;
+  row.goalId = row.goal_id;
   return row;
 }
 
@@ -111,8 +121,27 @@ function removeEntity(entityType, id){
 }
 
 function getCategorias(){ return getEntities('categorias'); }
-function addCategoria(c){ return addEntity('categorias', c); }
-function updateCategoria(id, data){ return updateEntity('categorias', id, data); }
+function addCategoria(c){
+  var row = { nome: c.nome, tipo: c.tipo, bucket: c.bucket, goal_id: c.goalId || c.goal_id || null };
+  return db.from(TABLES.categorias).insert(row).then(function(rows){
+    var created = decorateCategoria((rows||[])[0]);
+    _cache.categorias.push(created);
+    return created;
+  });
+}
+function updateCategoria(id, data){
+  var row = {};
+  if (data.nome !== undefined) row.nome = data.nome;
+  if (data.tipo !== undefined) row.tipo = data.tipo;
+  if (data.bucket !== undefined) row.bucket = data.bucket;
+  if (data.goalId !== undefined) row.goal_id = data.goalId;
+  return db.from(TABLES.categorias).eq('id', id).update(row).then(function(rows){
+    var updated = decorateCategoria((rows||[])[0]);
+    var idx = _cache.categorias.findIndex(function(item){ return item.id === id; });
+    if (idx !== -1) _cache.categorias[idx] = updated || Object.assign({}, _cache.categorias[idx], row);
+    return updated;
+  });
+}
 function removeCategoria(id){ return removeEntity('categorias', id); }
 
 /* Subcategorias: mapeia categoriaId (camelCase, usado pelas telas) <-> categoria_id (coluna) */
@@ -254,6 +283,53 @@ function setBudgetIncome(val){
   });
 }
 
+/* ── Metas conectadas (categorias vinculadas a goals) ── */
+// target das metas é texto livre ("R$ 50.000,00", "90 Dias"...) — extrai o número quando existir.
+function parseTargetValue(target){
+  if (!target) return null;
+  var m = String(target).replace(/\./g,'').replace(',', '.').match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+function getGoals(){ return _cache.goals; }
+
+// Metas financeiras com pelo menos uma categoria vinculada, progresso calculado
+// a partir da soma real dos lançamentos daquela categoria.
+function getMetasFinanceirasVinculadas(){
+  var categoriasComMeta = _cache.categorias.filter(function(c){ return c.goal_id; });
+  var porMeta = {};
+  categoriasComMeta.forEach(function(c){
+    if (!porMeta[c.goal_id]) porMeta[c.goal_id] = [];
+    porMeta[c.goal_id].push(c.id);
+  });
+  return Object.keys(porMeta).map(function(goalId){
+    var goal = _cache.goals.find(function(g){ return g.id === goalId; });
+    if (!goal) return null;
+    var catIds = porMeta[goalId];
+    // A categoria vinculada É a contribuição pra meta (ex: categoria "Investimento" lançada
+    // como despesa = dinheiro saindo da conta corrente pra poupança) — soma direta, sem
+    // inverter sinal por tipo receita/despesa.
+    var somaReal = _cache.lancamentos
+      .filter(function(l){ return catIds.indexOf(l.categoriaId) !== -1; })
+      .reduce(function(s, l){ return s + Number(l.valor); }, 0);
+    var alvo = parseTargetValue(goal.target);
+    var progressoCalculado = alvo && alvo > 0 ? Math.max(0, Math.min(100, Math.round(somaReal / alvo * 100))) : null;
+    return { goal: goal, somaReal: somaReal, alvo: alvo, progressoCalculado: progressoCalculado };
+  }).filter(Boolean);
+}
+
+// Sincroniza o progress calculado de volta pra tabela goals (visível também no módulo Metas).
+function sincronizarProgressoMetas(){
+  var vinculadas = getMetasFinanceirasVinculadas();
+  var updates = vinculadas
+    .filter(function(v){ return v.progressoCalculado !== null && v.progressoCalculado !== v.goal.progress; })
+    .map(function(v){
+      v.goal.progress = v.progressoCalculado;
+      return db.from('goals').eq('id', v.goal.id).update({progress: v.progressoCalculado});
+    });
+  return Promise.all(updates);
+}
+
 window.StorageService = {
   initFinanceiro,
   getCategorias, addCategoria, updateCategoria, removeCategoria,
@@ -263,7 +339,8 @@ window.StorageService = {
   getTiposPagamento, addTipoPagamento, updateTipoPagamento, removeTipoPagamento,
   getLancamentos, addLancamento, updateLancamento, removeLancamento,
   getBudgetPlan, getBudgetPlanValue, setBudgetPlanValue,
-  getBudgetIncome, setBudgetIncome
+  getBudgetIncome, setBudgetIncome,
+  getGoals, getMetasFinanceirasVinculadas, sincronizarProgressoMetas
 };
 
 }());
