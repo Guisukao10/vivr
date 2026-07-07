@@ -26,6 +26,10 @@ body{font-family:'Inter',sans-serif;background:#F4F4F5;min-height:100vh;padding-
 .mod-desc{font-size:.74rem;color:#888;line-height:1.5;flex:1}
 .mod-tags{display:flex;flex-wrap:wrap;gap:5px}
 .mod-tag{font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:8px;background:#F4F4F5;color:#71717A}
+.mod-stat{font-size:.78rem;font-weight:700;padding-top:8px;border-top:1px solid #F0F0F1;color:#3F3F46}
+.mod-stat .lbl{font-size:.62rem;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px}
+.mod-stat.warn{color:#C2410C}
+.mod-stat.ok{color:#15803D}
 /* module colors */
 .fin{border-top:3px solid #15803D}.fin .mod-icon{background:#F0FDF4}
 .met{border-top:3px solid #7C3AED}.met .mod-icon{background:#EDE9FE}
@@ -62,31 +66,31 @@ body{font-family:'Inter',sans-serif;background:#F4F4F5;min-height:100vh;padding-
       <div class="mod-icon">💰</div>
       <div><div class="mod-title">Financeiro</div>
       <div class="mod-desc">Gastos, ganhos, orçamento e planejador com regra 50/20/30.</div></div>
-      <div class="mod-tags"><span class="mod-tag">Gastos</span><span class="mod-tag">Planejador</span><span class="mod-tag">Investimento</span></div>
+      <div class="mod-stat" id="stat-fin">Carregando…</div>
     </a>
     <a class="mod-card met" href="metas/">
       <div class="mod-icon">🎯</div>
       <div><div class="mod-title">Metas</div>
       <div class="mod-desc">Do sonho de 10 anos ao que você faz hoje — tudo conectado.</div></div>
-      <div class="mod-tags"><span class="mod-tag">10 Anos</span><span class="mod-tag">Mensal</span><span class="mod-tag">Diário</span></div>
+      <div class="mod-stat" id="stat-met">Carregando…</div>
     </a>
     <a class="mod-card nut" href="nutricao/" id="mod-nut">
       <div class="mod-icon">🥗</div>
       <div><div class="mod-title">Nutrição</div>
       <div class="mod-desc">Diário alimentar, macros, hidratação e conexão com metas.</div></div>
-      <div class="mod-tags"><span class="mod-tag">Calorias</span><span class="mod-tag">Macros</span><span class="mod-tag">Água</span></div>
+      <div class="mod-stat" id="stat-nut">Carregando…</div>
     </a>
     <a class="mod-card hab" href="habitos/" id="mod-hab">
       <div class="mod-icon">✅</div>
       <div><div class="mod-title">Hábitos</div>
       <div class="mod-desc">Streaks, heatmap e construção de rotina consistente.</div></div>
-      <div class="mod-tags"><span class="mod-tag">Streak</span><span class="mod-tag">Rotina</span><span class="mod-tag">Heatmap</span></div>
+      <div class="mod-stat" id="stat-hab">Carregando…</div>
     </a>
     <a class="mod-card sau" href="saude/" id="mod-sau">
       <div class="mod-icon">❤️</div>
       <div><div class="mod-title">Saúde</div>
       <div class="mod-desc">Treinos, sono, métricas corporais e humor diário.</div></div>
-      <div class="mod-tags"><span class="mod-tag">Treino</span><span class="mod-tag">Sono</span><span class="mod-tag">Peso</span></div>
+      <div class="mod-stat" id="stat-sau">Carregando…</div>
     </a>
   </div>
 </div>
@@ -112,6 +116,51 @@ if(user){
 function doLogout(){
   vivr.auth.signOut().then(function(){ window.location.href='../auth/login.html'; });
 }
+
+/* ── Home como resumo real, não vitrine estática ── */
+function brl(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function setStat(id, text, cls){
+  var el = document.getElementById(id);
+  if (el) { el.textContent = text; if (cls) el.classList.add(cls); }
+}
+function todayKey(){ var n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+function monthPrefix(){ var n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+
+db.from('lancamentos').select('tipo,valor,data').then(function(rows){
+  var mes = monthPrefix();
+  var doMes = (rows||[]).filter(function(l){ return (l.data||'').indexOf(mes)===0; });
+  if (!doMes.length) { setStat('stat-fin','Nenhum lançamento este mês'); return; }
+  var saldo = doMes.reduce(function(s,l){ return s + (l.tipo==='despesa' ? -Number(l.valor) : Number(l.valor)); }, 0);
+  setStat('stat-fin', 'Saldo do mês: '+brl(saldo), saldo>=0?'ok':'warn');
+}).catch(function(){ setStat('stat-fin','Sem dados ainda'); });
+
+db.from('goals').select('hz,progress').then(function(rows){
+  var anuais = (rows||[]).filter(function(g){ return g.hz==='anual'; });
+  if (!anuais.length) { setStat('stat-met','Nenhuma meta anual definida'); return; }
+  var concl = anuais.filter(function(g){ return (g.progress||0)>=100; }).length;
+  setStat('stat-met', concl+' de '+anuais.length+' metas anuais concluídas');
+}).catch(function(){ setStat('stat-met','Sem dados ainda'); });
+
+db.from('nutrition_logs').eq('date',todayKey()).select('calories').then(function(rows){
+  if (!rows || !rows.length) { setStat('stat-nut','Sem registro hoje'); return; }
+  var cal = rows.reduce(function(s,r){ return s+Number(r.calories||0); },0);
+  setStat('stat-nut', cal+' kcal registradas hoje', 'ok');
+}).catch(function(){ setStat('stat-nut','Sem dados ainda'); });
+
+db.from('habits').select('id').then(function(habitsRows){
+  if (!habitsRows || !habitsRows.length) { setStat('stat-hab','Nenhum hábito cadastrado'); return; }
+  return db.from('habit_logs').eq('date',todayKey()).select('habit_id,done').then(function(logs){
+    var feitos = (logs||[]).filter(function(l){ return l.done; }).length;
+    setStat('stat-hab', feitos+' de '+habitsRows.length+' hábitos feitos hoje', feitos===habitsRows.length?'ok':undefined);
+  });
+}).catch(function(){ setStat('stat-hab','Sem dados ainda'); });
+
+db.from('workouts').order('date',{ascending:false}).select('date').then(function(rows){
+  if (!rows || !rows.length) { setStat('stat-sau','Nenhum treino registrado'); return; }
+  var ultima = rows[0].date;
+  var dias = Math.floor((new Date(todayKey()) - new Date(ultima)) / 86400000);
+  setStat('stat-sau', dias===0 ? 'Treino feito hoje' : dias===1 ? 'Último treino: ontem' : 'Último treino: há '+dias+' dias', dias<=1?'ok':undefined);
+}).catch(function(){ setStat('stat-sau','Sem dados ainda'); });
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('../sw.js', {scope:'../'}).catch(function(){});

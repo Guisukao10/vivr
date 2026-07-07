@@ -49,10 +49,35 @@ function rebuildDerivedData(){
   });
 }
 
-/* ─── Planejador 50/20/30: Acompanhamento do mês atual ─── */
-function renderAcompanhamento(){
+/* ─── Seleção de mês do acompanhamento ─── */
+// Mesmo range de simGetPlanMonths() (mês atual até dezembro) — de propósito: orçamento
+// só pode ser preenchido pra frente (pela tabela de baixo ou "preencher com médias"),
+// então deixar escolher mês passado aqui abriria uma tela "sem orçamento" sem ação possível.
+// Análise de meses passados já é o papel da aba Análise.
+function getMesesAcompanhamento(){
   var now = new Date();
-  var curMonth = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var meses = [monthKey(now)];
+  for (var m=now.getMonth()+1; m<=11; m++){
+    meses.push(now.getFullYear()+'-'+String(m+1).padStart(2,'0'));
+  }
+  return meses;
+}
+
+function populateMonthSelect(){
+  var sel = document.getElementById('acpMonthSelect');
+  if (!sel) return;
+  var meses = getMesesAcompanhamento();
+  var atual = sel.value && meses.indexOf(sel.value)!==-1 ? sel.value : meses[0];
+  sel.innerHTML = meses.map(function(m){ return '<option value="'+m+'"'+(m===atual?' selected':'')+'>'+monthLabel(m)+'</option>'; }).join('');
+  sel.onchange = function(){ renderAcompanhamento(sel.value); };
+  return atual;
+}
+
+/* ─── Planejador 50/20/30: Acompanhamento do mês escolhido ─── */
+function renderAcompanhamento(mesEscolhido){
+  var now = new Date();
+  var curMonth = mesEscolhido || monthKey(now);
+  var isMesAtual = curMonth === monthKey(now);
   var cats = uniq(allGastos.map(function(r){ return r.cat; }));
 
   var realMap = {};
@@ -71,7 +96,7 @@ function renderAcompanhamento(){
   var titleEl = document.getElementById('acpTitle');
   var subEl = document.getElementById('acpSub');
   if(titleEl) titleEl.textContent = 'Acompanhamento — ' + monthLabel(curMonth);
-  if(subEl) subEl.textContent = now.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  if(subEl) subEl.textContent = isMesAtual ? now.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : 'mês fechado';
 
   if(!hasPlan){
     document.getElementById('acpResume').innerHTML='';
@@ -88,8 +113,9 @@ function renderAcompanhamento(){
   var pctUsed = totalPlan>0 ? totalGasto/totalPlan*100 : 0;
   var restCls = totalRest<0?'over':pctUsed>=80?'warn':'ok';
 
-  var daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-  var daysPassed = now.getDate();
+  var curYear = parseInt(curMonth.split('-')[0],10), curMon = parseInt(curMonth.split('-')[1],10)-1;
+  var daysInMonth = new Date(curYear, curMon+1, 0).getDate();
+  var daysPassed = isMesAtual ? now.getDate() : daysInMonth; // mês fechado = 100% decorrido
   var daysPct = daysPassed/daysInMonth*100;
   var expectedSpend = totalPlan * daysPassed/daysInMonth;
   var onTrack = totalGasto <= expectedSpend * 1.05;
@@ -182,7 +208,8 @@ function simGetRefMonths(){
 }
 
 function renderSimTab(){
-  renderAcompanhamento();
+  var mesEscolhido = populateMonthSelect();
+  renderAcompanhamento(mesEscolhido);
   var months = simGetPlanMonths();
   var cats = uniq(allGastos.map(function(r){ return r.cat; }));
   var ganhoMs = uniq(allGanhos.map(function(r){ return monthKey(r.date); }));

@@ -82,7 +82,7 @@ const AnalisePage = (function () {
     const all = Array.isArray(allLancamentos) ? allLancamentos : [];
     const filtro = Array.isArray(filteredLancamentos) ? filteredLancamentos : [];
 
-    const totalGeral = all.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    const totalGeral = all.reduce((sum, item) => sum + (item.tipo === 'despesa' ? -Number(item.valor || 0) : Number(item.valor || 0)), 0);
     const ganhos = filtro.filter((x) => x.tipo === 'receita').reduce((sum, x) => sum + Number(x.valor || 0), 0);
     const gastos = filtro.filter((x) => x.tipo === 'despesa').reduce((sum, x) => sum + Number(x.valor || 0), 0);
     const saldoPeriodo = ganhos - gastos;
