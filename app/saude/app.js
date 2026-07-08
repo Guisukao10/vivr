@@ -97,6 +97,8 @@ function renderDateNav(){
 function renderHoje(){
   var html = renderDateNav();
 
+  html += renderQuickLog();
+
   /* Overview cards */
   html += '<div class="day-overview">';
 
@@ -156,6 +158,110 @@ function renderHoje(){
   document.getElementById('mainPanel').innerHTML = html;
 }
 
+/* ── Registro rápido de hoje ──
+   Objetivo: registrar o dia sem abrir modal nenhum — 1 ou 2 toques por item,
+   salva na hora. Só mostra linha de item que ainda falta hoje; some sozinho
+   conforme a pessoa vai preenchendo. Quem quiser mais detalhe (notas, calorias,
+   medidas extras) ainda pode clicar no card ou usar "+ Mais detalhes" nas telas
+   de cada aba — isso aqui é só pro básico do dia a dia. */
+var quickWkType = 'Musculação';
+var QUICK_WK_TYPES = ['Musculação','Corrida','Caminhada','Outro'];
+var QUICK_DURATIONS = [15,30,45,60,90];
+var QUICK_SLEEP_HOURS = [5,6,7,8,9];
+
+function renderQuickLog(){
+  if(currentDate!==todayStr()) return ''; // registro rápido só faz sentido pra hoje
+  var rows = [];
+  if(!dayWorkouts.length) rows.push(quickWorkoutRow());
+  if(!daySleep) rows.push(quickSleepRow());
+  if(!(dayMetrics&&dayMetrics.weight_kg)) rows.push(quickWeightRow());
+  if(!dayMood) rows.push(quickMoodRow());
+  if(!rows.length) return '';
+  return '<div class="section-panel quick-log">'+
+    '<div class="sp-header"><span class="sp-title">⚡ Registro rápido de hoje</span></div>'+
+    rows.join('')+
+  '</div>';
+}
+
+function quickWorkoutRow(){
+  return '<div class="ql-row">'+
+    '<div class="ql-lbl">💪 Treinei</div>'+
+    '<div class="ql-chips">'+QUICK_WK_TYPES.map(function(t){
+      return '<button type="button" class="ql-chip'+(t===quickWkType?' sel':'')+'" onclick="pickQuickWkType(\''+t+'\')">'+t+'</button>';
+    }).join('')+'</div>'+
+    '<div class="ql-chips ql-chips-sub">'+QUICK_DURATIONS.map(function(d){
+      return '<button type="button" class="ql-chip" onclick="quickSaveWorkout('+d+')">'+d+'min</button>';
+    }).join('')+'</div>'+
+  '</div>';
+}
+
+function quickSleepRow(){
+  return '<div class="ql-row">'+
+    '<div class="ql-lbl">😴 Dormi</div>'+
+    '<div class="ql-chips">'+QUICK_SLEEP_HOURS.map(function(h){
+      return '<button type="button" class="ql-chip" onclick="quickSaveSleep('+h+')">'+h+'h</button>';
+    }).join('')+
+    '<button type="button" class="ql-chip" onclick="openModal(\'sleep\')">outro…</button></div>'+
+  '</div>';
+}
+
+function quickWeightRow(){
+  return '<div class="ql-row">'+
+    '<div class="ql-lbl">📏 Pesei</div>'+
+    '<div class="ql-chips">'+
+      '<input type="number" step="0.1" placeholder="kg" class="ql-input" id="qlWeight" onkeydown="if(event.key===\'Enter\')quickSaveWeight()"/>'+
+      '<button type="button" class="ql-chip" onclick="quickSaveWeight()">✓ Salvar</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function quickMoodRow(){
+  return '<div class="ql-row">'+
+    '<div class="ql-lbl">😊 Humor</div>'+
+    '<div class="ql-chips">'+[1,2,3,4,5].map(function(i){
+      return '<button type="button" class="ql-chip ql-emoji" onclick="quickSaveMood('+i+')">'+MOOD_EMOJI[i]+'</button>';
+    }).join('')+'</div>'+
+  '</div>';
+}
+
+function pickQuickWkType(t){
+  quickWkType = t;
+  document.querySelectorAll('.ql-row .ql-chip').forEach(function(el){
+    if(QUICK_WK_TYPES.indexOf(el.textContent)!==-1) el.classList.toggle('sel', el.textContent===t);
+  });
+}
+
+function quickSaveWorkout(dur){
+  var data={id:uid(), date:currentDate, type:quickWkType, duration_min:dur, intensity:3, calories_burned:0, goal_id:null, notes:''};
+  db.from('workouts').insert(data).then(function(res){
+    dayWorkouts.push(Array.isArray(res)?res[0]:data);
+    renderSection();
+  }).catch(function(e){alert('Erro: '+e.message);});
+}
+
+function quickSaveSleep(hours){
+  var data={id:uid(),date:currentDate,bedtime:null,wake_time:null,hours:hours,quality:3,notes:''};
+  db.from('sleep_logs').insert(data).then(function(res){
+    daySleep=Array.isArray(res)?res[0]:data; renderSection();
+  }).catch(function(e){alert('Erro: '+e.message);});
+}
+
+function quickSaveWeight(){
+  var val = parseFloat(document.getElementById('qlWeight').value);
+  if(!val){alert('Digite o peso.');return;}
+  var data={id:uid(),date:currentDate,weight_kg:val,fat_pct:null,waist_cm:null,hip_cm:null,chest_cm:null,notes:''};
+  db.from('body_metrics').insert(data).then(function(res){
+    dayMetrics=Array.isArray(res)?res[0]:data; renderSection();
+  }).catch(function(e){alert('Erro: '+e.message);});
+}
+
+function quickSaveMood(mood){
+  var data={id:uid(),date:currentDate,mood:mood,energy:3,stress:3,notes:''};
+  db.from('mood_logs').insert(data).then(function(res){
+    dayMood=Array.isArray(res)?res[0]:data; renderSection();
+  }).catch(function(e){alert('Erro: '+e.message);});
+}
+
 function doCard(icon,lbl,val,sub,color,section){
   return '<div class="do-card'+(val?' filled':'')+'" style="--accent:'+color+'" onclick="setSection(\''+section+'\')">'+
     '<div class="do-icon">'+icon+'</div>'+
@@ -178,7 +284,7 @@ function sleepSummary(){
   if(!daySleep) return '<div style="color:#ccc;font-size:.75rem;padding:8px">😴 Sono não registrado</div>';
   return '<div style="font-size:.78rem;padding:4px 0">'+
     '<div>😴 <strong>'+daySleep.hours+'h</strong> de sono</div>'+
-    '<div style="margin-top:3px;color:#888">'+daySleep.bedtime+' → '+daySleep.wake_time+'</div>'+
+    (daySleep.bedtime&&daySleep.wake_time?'<div style="margin-top:3px;color:#888">'+daySleep.bedtime+' → '+daySleep.wake_time+'</div>':'')+
     '<div style="margin-top:3px">Qualidade: '+stars(daySleep.quality)+'</div></div>';
 }
 function moodSummary(){
@@ -408,8 +514,8 @@ function buildForm(type){
   if(type==='sleep'){
     return '<div class="mf">'+
       '<div class="mf-row">'+
-        '<div class="mf-field"><label>Dormiu às</label><input id="mf-bed" type="time" value="'+(daySleep?daySleep.bedtime:'23:00')+'"/></div>'+
-        '<div class="mf-field"><label>Acordou às</label><input id="mf-wake" type="time" value="'+(daySleep?daySleep.wake_time:'07:00')+'"/></div>'+
+        '<div class="mf-field"><label>Dormiu às</label><input id="mf-bed" type="time" value="'+((daySleep&&daySleep.bedtime)||'23:00')+'"/></div>'+
+        '<div class="mf-field"><label>Acordou às</label><input id="mf-wake" type="time" value="'+((daySleep&&daySleep.wake_time)||'07:00')+'"/></div>'+
       '</div>'+
       '<div class="mf-field"><label>Qualidade do sono</label>'+
         '<div class="rating-btns" id="qualBtns">'+[1,2,3,4,5].map(function(i){
@@ -577,6 +683,8 @@ window.saveWorkout=saveWorkout; window.saveSleep=saveSleep;
 window.saveMetrics=saveMetrics; window.saveMood=saveMood;
 window.deleteWorkout=deleteWorkout; window.incGoal=incGoal;
 window.pickWkType=pickWkType; window.setRating=setRating; window.toggleMoreDetails=toggleMoreDetails;
+window.pickQuickWkType=pickQuickWkType; window.quickSaveWorkout=quickSaveWorkout;
+window.quickSaveSleep=quickSaveSleep; window.quickSaveWeight=quickSaveWeight; window.quickSaveMood=quickSaveMood;
 window.renderTreinoOriginal=renderTreinoOriginal;
 
 document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal();});
