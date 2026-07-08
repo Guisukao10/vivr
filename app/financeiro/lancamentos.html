@@ -7,6 +7,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="../../assets/shared.css"/>
 <link rel="stylesheet" href="site-controle.css"/>
+<style>
+.lc-tipo-toggle{display:flex;gap:8px;margin-bottom:14px}
+.lc-tipo-btn{flex:1;padding:12px;border-radius:10px;border:2px solid var(--color-border);background:#fff;font-size:.9rem;font-weight:700;cursor:pointer;color:var(--color-text-secondary)}
+.lc-tipo-btn.on[data-tipo="despesa"]{border-color:#FCA5A5;background:#FEF2F2;color:#B91C1C}
+.lc-tipo-btn.on[data-tipo="receita"]{border-color:#86EFAC;background:#F0FDF4;color:#15803D}
+.lc-toggle-detalhes{background:none;border:none;color:var(--color-primary);font-size:.8rem;font-weight:600;cursor:pointer;padding:6px 0;margin-bottom:8px}
+</style>
 </head>
 <body>
 <nav class="vivr-nav">
@@ -42,28 +49,31 @@
   <div id="lancamentoFormWrap">
     <form class="panel" id="lancamentoForm">
       <h3>Novo lançamento</h3>
+
+      <div class="lc-tipo-toggle">
+        <button type="button" class="lc-tipo-btn on" data-tipo="despesa" id="btnTipoDespesa">💸 Gastei</button>
+        <button type="button" class="lc-tipo-btn" data-tipo="receita" id="btnTipoReceita">💰 Recebi</button>
+        <input type="hidden" id="tipo" value="despesa"/>
+      </div>
+
       <div class="form-group">
-        <div><label>Data</label><input type="date" id="data" required/></div>
-        <div><label>Tipo</label>
-          <select id="tipo">
-            <option value="despesa">Despesa</option>
-            <option value="receita">Receita</option>
-          </select>
-        </div>
-        <div><label>Responsável</label><select id="responsavel"></select></div>
+        <div style="flex:2"><label>Descrição</label><input type="text" id="descricao" list="descSuggestions" placeholder="Ex: Supermercado, Uber, salário..." required autofocus/>
+          <datalist id="descSuggestions"></datalist></div>
+        <div><label>Valor (R$)</label><input type="number" id="valor" min="0.01" step="0.01" placeholder="0,00" required/></div>
       </div>
       <div class="form-group">
         <div><label>Categoria</label><select id="categoria"></select></div>
+        <div><label>Data</label><input type="date" id="data" required/></div>
+      </div>
+
+      <button type="button" class="lc-toggle-detalhes" id="btnToggleDetalhes">+ Mais detalhes (opcional)</button>
+      <div class="form-group lc-detalhes" id="lcDetalhes" style="display:none">
+        <div><label>Responsável</label><select id="responsavel"></select></div>
         <div><label>Subcategoria</label><select id="subcategoria"></select></div>
         <div><label>Nova subcategoria</label><input type="text" id="subcategoriaNova" placeholder="Nome (se 'Criar nova')" disabled/></div>
       </div>
-      <div class="form-group">
-        <div><label>Descrição</label><input type="text" id="descricao" list="descSuggestions" placeholder="Ex: Supermercado" required/>
-          <datalist id="descSuggestions"></datalist></div>
-        <div><label>Valor (R$)</label><input type="number" id="valor" min="0.01" step="0.01" required/></div>
+      <div class="form-group lc-detalhes" id="lcDetalhes2" style="display:none">
         <div><label>Status</label><select id="status"></select></div>
-      </div>
-      <div class="form-group">
         <div><label>Forma de pagamento</label><select id="pagamento"></select></div>
         <div><label>Recorrente?</label>
           <select id="recorrente"><option value="nao">Não</option><option value="sim">Sim</option></select>
@@ -72,9 +82,10 @@
           <select id="fixoVariavel"><option value="variavel">Variável</option><option value="fixo">Fixo</option></select>
         </div>
       </div>
-      <div class="form-group">
+      <div class="form-group lc-detalhes" id="lcDetalhes3" style="display:none">
         <div style="flex:3"><label>Observação</label><input type="text" id="obs" placeholder="Opcional"/></div>
       </div>
+
       <button type="submit" class="btn btn-primary">Salvar lançamento</button>
       <button type="button" class="btn" id="btnCancelarEdicao" style="display:none">Cancelar edição</button>
     </form>
@@ -82,16 +93,16 @@
 
 
   <div class="panel">
-    <h3>Filtros</h3>
     <div class="form-group">
       <div><label>Buscar</label><input type="text" id="filtroTexto" placeholder="Descrição contém..."/></div>
-      <div><label>Competência</label><input type="month" id="filtroCompetencia"/></div>
-      <div><label>Responsável</label><select id="filtroResponsavel"></select></div>
+      <div><label>Mês</label><input type="month" id="filtroCompetencia"/></div>
       <div><label>Tipo</label>
         <select id="filtroTipo"><option value="">Todos</option><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
       </div>
     </div>
-    <div class="form-group">
+    <button type="button" class="lc-toggle-detalhes" id="btnToggleMaisFiltros">+ Mais filtros</button>
+    <div class="form-group lc-detalhes" id="maisFiltros" style="display:none">
+      <div><label>Responsável</label><select id="filtroResponsavel"></select></div>
       <div><label>Categoria</label><select id="filtroCategoria"></select></div>
       <div><label>Subcategoria</label><select id="filtroSubcategoria"></select></div>
       <div><label>Status</label><select id="filtroStatus"></select></div>
@@ -99,7 +110,7 @@
         <select id="filtroFixoVariavel"><option value="">Todos</option><option value="fixo">Fixo</option><option value="variavel">Variável</option></select>
       </div>
     </div>
-    <button class="btn btn-small" id="btnLimparFiltros">× Limpar filtros</button>
+    <button class="btn btn-small" id="btnLimparFiltros" style="margin-top:10px">× Limpar filtros</button>
     <p style="margin-top:10px;font-size:.85rem;color:var(--color-text-secondary)">
       <span id="contadorRegistros">0</span> lançamento(s) · Total: <strong id="totalFiltrado">R$ 0,00</strong>
     </p>
@@ -111,16 +122,9 @@
         <thead>
           <tr>
             <th data-sort="data">Data</th>
-            <th>Tipo</th>
-            <th>Responsável</th>
-            <th>Categoria</th>
-            <th>Subcategoria</th>
             <th>Descrição</th>
+            <th>Categoria</th>
             <th data-sort="valor">Valor</th>
-            <th>Status</th>
-            <th>Recorrente</th>
-            <th>Fixo/Var.</th>
-            <th>Pagamento</th>
             <th>Ação</th>
           </tr>
         </thead>

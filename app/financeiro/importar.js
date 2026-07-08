@@ -7,23 +7,6 @@
 
 var LINE_RE = /(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(.+?)\s+(-?\s?R?\$?\s?-?[\d.]{1,12},\d{2})\s*$/;
 
-// Palavra-chave -> nome de categoria (comparado sem acento/maiúscula contra as
-// categorias que o usuário já tem cadastradas; se não achar, cai em "Outros").
-var KEYWORDS = {
-  'alimenta': ['ifood','rappi','restaurante','lanchonete','padaria','mercado','supermercado','feira','acougue'],
-  'transporte': ['uber','99','taxi','combustivel','posto','gasolina','estacionamento','pedagio','onibus','metro'],
-  'compras': ['shopee','amazon','magalu','mercadolivre','shein','loja','magazine'],
-  'saude': ['farmacia','drogaria','academia','wellhub','gympass','consulta','exame'],
-  'assinatura': ['netflix','spotify','disney','hbo','amazon prime','icloud','youtube premium'],
-  'casa': ['condominio','aluguel','luz','agua','energia','internet','gas'],
-  'lazer': ['cinema','bar','balada','ingresso','show'],
-  'educa': ['curso','faculdade','escola','livro'],
-  'doa': ['dizimo','doacao','igreja'],
-};
-
-function stripAccents(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,''); }
-function lo(s){ return stripAccents(s).toLowerCase(); }
-
 function parseValor(s){
   var c = String(s).replace(/R\$/gi,'').replace(/\s/g,'').replace(/\./g,'').replace(',', '.');
   var v = parseFloat(c);
@@ -39,15 +22,9 @@ function parseData(s){
 }
 
 function sugerirCategoriaId(descricao, categorias){
-  var texto = lo(descricao);
-  for (var chave in KEYWORDS) {
-    var achou = KEYWORDS[chave].some(function(kw){ return texto.indexOf(kw) !== -1; });
-    if (achou) {
-      var cat = categorias.find(function(c){ return lo(c.nome).indexOf(chave) !== -1; });
-      if (cat) return cat.id;
-    }
-  }
-  var outros = categorias.find(function(c){ return lo(c.nome) === 'outros'; });
+  var achada = Utils.sugerirCategoriaPorTexto(descricao, categorias);
+  if (achada) return achada;
+  var outros = categorias.find(function(c){ return c.nome.toLowerCase() === 'outros'; });
   return outros ? outros.id : (categorias[0] ? categorias[0].id : null);
 }
 

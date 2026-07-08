@@ -43,7 +43,40 @@ const LancamentosPage = (function () {
       tblHead: document.querySelectorAll('#tabelaLancamentos th[data-sort]'),
       btnCancelarEdicao: document.getElementById('btnCancelarEdicao'),
       descSuggestions: document.getElementById('descSuggestions'),
+      btnTipoDespesa: document.getElementById('btnTipoDespesa'),
+      btnTipoReceita: document.getElementById('btnTipoReceita'),
+      btnToggleDetalhes: document.getElementById('btnToggleDetalhes'),
+      lcDetalhes: [document.getElementById('lcDetalhes'), document.getElementById('lcDetalhes2'), document.getElementById('lcDetalhes3')],
+      btnToggleMaisFiltros: document.getElementById('btnToggleMaisFiltros'),
+      maisFiltros: document.getElementById('maisFiltros'),
     };
+  }
+
+  // Categoria filtrada pelo tipo escolhido (Gastei/Recebi) — menos chance de escolher
+  // errado, e a lista fica menor (só o que faz sentido pro tipo atual).
+  function atualizarCategoriaPorTipo() {
+    const tipo = dom.tipo.value;
+    const categorias = StorageService.getCategorias().filter((c) => c.tipo === tipo);
+    preencherSelect(dom.categoria, categorias, (x) => x.nome, (x) => x.id);
+    atualizarSubcategorias(dom.categoria.value);
+    atualizarSugestoesDescricao();
+  }
+
+  function setTipo(tipo) {
+    dom.tipo.value = tipo;
+    dom.btnTipoDespesa.classList.toggle('on', tipo === 'despesa');
+    dom.btnTipoReceita.classList.toggle('on', tipo === 'receita');
+    atualizarCategoriaPorTipo();
+  }
+
+  // Enquanto a pessoa digita a descrição, tenta adivinhar a categoria — ela só precisa
+  // confirmar (ou trocar), não escolher do zero toda vez.
+  function sugerirCategoriaPorDescricao() {
+    const texto = dom.descricao.value.trim();
+    if (!texto || texto.length < 3) return;
+    const categorias = StorageService.getCategorias().filter((c) => c.tipo === dom.tipo.value);
+    const catId = Utils.sugerirCategoriaPorTexto(texto, categorias);
+    if (catId) dom.categoria.value = catId;
   }
 
   // Autocomplete: sugere descrições já usadas na mesma categoria (mais frequentes primeiro),
@@ -91,7 +124,7 @@ const LancamentosPage = (function () {
 
   function carregarDadosBasicos() {
     preencherSelect(dom.responsavel, StorageService.getResponsaveis(), (x) => x.nome, (x) => x.id);
-    preencherSelect(dom.categoria, StorageService.getCategorias(), (x) => x.nome + ' (' + (x.tipo==='receita'?'ganho':'gasto') + ')', (x) => x.id);
+    atualizarCategoriaPorTipo();
     preencherSelect(dom.status, StorageService.getStatus(), (x) => x.nome, (x) => x.id);
     preencherSelect(dom.pagamento, StorageService.getTiposPagamento(), (x) => x.nome, (x) => x.id);
 
@@ -99,7 +132,6 @@ const LancamentosPage = (function () {
     preencherSelect(dom.filtroCategoria, StorageService.getCategorias(), (x) => x.nome, (x) => x.id, true);
     preencherSelect(dom.filtroStatus, StorageService.getStatus(), (x) => x.nome, (x) => x.id, true);
 
-    atualizarSubcategorias();
     atualizarFiltroSubcategorias();
   }
 
@@ -146,7 +178,10 @@ const LancamentosPage = (function () {
 
     if (subcategoriaId === 'novo') {
       const nomeSub = dom.subcategoriaNova.value.trim();
-      if (!nomeSub) return Promise.reject(new Error('Informe o nome da nova subcategoria'));
+      // Subcategoria é sempre opcional — "novo" pode ter virado a opção selecionada
+      // sozinho (só existe "Criar nova" pra essa categoria) sem a pessoa ter aberto
+      // "Mais detalhes" pra ver isso. Sem nome digitado, segue sem subcategoria.
+      if (!nomeSub) return Promise.resolve(montarPayload(null));
       return StorageService.addSubcategoria({ categoriaId, nome: nomeSub }).then((nova) => {
         atualizarSubcategorias(categoriaId);
         atualizarFiltroSubcategorias();
@@ -163,18 +198,13 @@ const LancamentosPage = (function () {
     dom.tabelaCorpo.innerHTML = '';
     lancamentos.forEach((item) => {
       const tr = document.createElement('tr');
+      const cor = item.tipo === 'receita' ? '#15803D' : '#B91C1C';
+      const sinal = item.tipo === 'receita' ? '+' : '-';
       tr.innerHTML = `
         <td>${Utils.formatDate(item.data)}</td>
-        <td>${item.tipo === 'receita' ? 'Receita' : 'Despesa'}</td>
-        <td>${UI.mapResponsavelName(item.responsavelId)}</td>
-        <td>${UI.mapCategoryName(item.categoriaId)}</td>
-        <td>${UI.mapSubcategoryName(item.subcategoriaId)}</td>
         <td>${item.descricao}</td>
-        <td>${Utils.formatCurrency(item.valor)}</td>
-        <td>${UI.mapStatusName(item.statusId)}</td>
-        <td>${item.recurring ? 'Sim' : 'Não'}</td>
-        <td>${item.fixoVariavel === 'fixo' ? 'Fixo' : 'Variável'}</td>
-        <td>${UI.mapPagamentoName(item.pagamentoId)}</td>
+        <td>${UI.mapCategoryName(item.categoriaId)}</td>
+        <td style="color:${cor};font-weight:700">${sinal} ${Utils.formatCurrency(item.valor)}</td>
         <td class="action-cell">
           <button class="btn btn-small btn-info" data-action="editar" data-id="${item.id}">Editar</button>
           <button class="btn btn-small btn-danger" data-action="excluir" data-id="${item.id}">Excluir</button>
@@ -240,7 +270,7 @@ const LancamentosPage = (function () {
   function setEditState(item) {
     state.editingId = item.id;
     dom.data.value = item.data;
-    dom.tipo.value = item.tipo;
+    setTipo(item.tipo);
     dom.responsavel.value = item.responsavelId || '';
     dom.categoria.value = item.categoriaId || '';
     atualizarSubcategorias(item.categoriaId);
@@ -253,6 +283,13 @@ const LancamentosPage = (function () {
     dom.fixoVariavel.value = item.fixoVariavel || 'variavel';
     dom.pagamento.value = item.pagamentoId || '';
     dom.btnCancelarEdicao.style.display = '';
+    setDetalhesVisiveis(true); // editar já mostra tudo — evita esconder dado que a pessoa já tinha preenchido
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function setDetalhesVisiveis(visivel) {
+    dom.lcDetalhes.forEach((el) => { if (el) el.style.display = visivel ? '' : 'none'; });
+    if (dom.btnToggleDetalhes) dom.btnToggleDetalhes.textContent = visivel ? '− Menos detalhes' : '+ Mais detalhes (opcional)';
   }
 
   function resetForm() {
@@ -262,11 +299,27 @@ const LancamentosPage = (function () {
     dom.subcategoriaNova.disabled = true;
     dom.data.value = new Date().toISOString().substr(0, 10);
     dom.btnCancelarEdicao.style.display = 'none';
+    setTipo('despesa');
+    setDetalhesVisiveis(false);
   }
 
   function registerEvents() {
     dom.categoria.addEventListener('change', (e) => { atualizarSubcategorias(e.target.value); atualizarSugestoesDescricao(); });
     dom.descricao.addEventListener('change', preencherPorDescricaoConhecida);
+    dom.descricao.addEventListener('input', sugerirCategoriaPorDescricao);
+
+    dom.btnTipoDespesa.addEventListener('click', () => setTipo('despesa'));
+    dom.btnTipoReceita.addEventListener('click', () => setTipo('receita'));
+
+    dom.btnToggleDetalhes.addEventListener('click', () => {
+      const visivel = dom.lcDetalhes[0].style.display !== 'none';
+      setDetalhesVisiveis(!visivel);
+    });
+    dom.btnToggleMaisFiltros.addEventListener('click', () => {
+      const visivel = dom.maisFiltros.style.display !== 'none';
+      dom.maisFiltros.style.display = visivel ? 'none' : '';
+      dom.btnToggleMaisFiltros.textContent = visivel ? '+ Mais filtros' : '− Menos filtros';
+    });
 
     dom.subcategoria.addEventListener('change', (e) => {
       const isNovo = e.target.value === 'novo';

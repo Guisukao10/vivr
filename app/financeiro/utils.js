@@ -162,6 +162,35 @@ function normalizeEntry(entry) {
   return normalized;
 }
 
+// Palavra-chave -> pedaço do nome da categoria (comparado sem acento/maiúscula).
+// Usado tanto no lançamento manual (sugerir categoria enquanto digita a descrição)
+// quanto na importação de extrato — mesma lógica, um lugar só.
+var CATEGORIA_KEYWORDS = {
+  'alimenta': ['ifood','rappi','restaurante','lanchonete','padaria','mercado','supermercado','feira','acougue'],
+  'transporte': ['uber','99','taxi','combustivel','posto','gasolina','estacionamento','pedagio','onibus','metro'],
+  'compras': ['shopee','amazon','magalu','mercadolivre','shein','loja','magazine'],
+  'saude': ['farmacia','drogaria','academia','wellhub','gympass','consulta','exame'],
+  'assinatura': ['netflix','spotify','disney','hbo','amazon prime','icloud','youtube premium'],
+  'casa': ['condominio','aluguel','luz','agua','energia','internet','gas'],
+  'lazer': ['cinema','bar','balada','ingresso','show'],
+  'educa': ['curso','faculdade','escola','livro'],
+  'doa': ['dizimo','doacao','igreja'],
+};
+
+function stripAccents(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
+function sugerirCategoriaPorTexto(texto, categorias) {
+  var t = stripAccents(texto).toLowerCase();
+  for (var chave in CATEGORIA_KEYWORDS) {
+    var achou = CATEGORIA_KEYWORDS[chave].some(function(kw){ return t.indexOf(kw) !== -1; });
+    if (achou) {
+      var cat = categorias.find(function(c){ return stripAccents(c.nome).toLowerCase().indexOf(chave) !== -1; });
+      if (cat) return cat.id;
+    }
+  }
+  return null;
+}
+
 window.Utils = {
   formatCurrency,
   formatDate,
@@ -175,4 +204,5 @@ window.Utils = {
   getWeekday,
   sortByDate,
   normalizeEntry,
+  sugerirCategoriaPorTexto,
 };
