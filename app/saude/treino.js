@@ -388,6 +388,7 @@ function finalizarExecucao(){
     tState.execucaoAtual = null;
     window._treinoAvancadoLoaded = false;
     renderTreino();
+    if(window.syncAutoTrackGoals) window.syncAutoTrackGoals();
   }).catch(function(e){ alert('Erro ao salvar: '+e.message); });
 }
 

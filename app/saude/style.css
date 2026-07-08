@@ -117,6 +117,7 @@ body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:
 .hg-bar-fill{height:100%;border-radius:4px;background:#E11D48;transition:width .4s}
 .hg-pct{font-size:.74rem;font-weight:700;color:#E11D48;min-width:34px;text-align:right}
 .hg-inc{padding:2px 7px;border:1px solid #FECDD3;border-radius:5px;background:#fff;font-size:.63rem;cursor:pointer;font-family:inherit;color:#E11D48;font-weight:600}
+.hg-auto{font-size:.63rem;font-weight:700;color:#15803D;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:5px;padding:2px 7px;white-space:nowrap}
 
 /* Form */
 .mf{display:flex;flex-direction:column;gap:12px}

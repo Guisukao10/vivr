@@ -45,7 +45,7 @@ function loadDay(){
     db.from('sleep_logs').eq('date',currentDate).select('*'),
     db.from('body_metrics').eq('date',currentDate).select('*'),
     db.from('mood_logs').eq('date',currentDate).select('*'),
-    db.from('goals').eq('area','sau').select('id,title,progress,hz,target')
+    db.from('goals').eq('area','sau').select('id,title,progress,hz,target,auto_track,target_count')
   ]).then(function(res){
     dayWorkouts = res[0]||[];
     daySleep    = (res[1]||[])[0]||null;
@@ -53,9 +53,32 @@ function loadDay(){
     dayMood     = (res[3]||[])[0]||null;
     healthGoals = (res[4]||[]).filter(function(g){return g.hz!=='diario';});
     renderSection();
+    return syncAutoTrackGoals();
   }).catch(function(e){
     document.getElementById('mainPanel').innerHTML='<div class="loading" style="color:#B91C1C">⚠️ '+e.message+'</div>';
   });
+}
+
+// Metas com auto_track não dependem de a pessoa marcar nada — o progresso vem
+// direto da contagem real de dias com treino registrado. Roda depois do render
+// inicial (não bloqueia a tela) e sempre re-renderiza no final: mesmo quando o
+// progresso salvo já estava certo, "X/90 dias" só existe depois desse cálculo.
+function syncAutoTrackGoals(){
+  var autoGoals = healthGoals.filter(function(g){ return g.auto_track==='workouts_days' && g.target_count>0; });
+  if(!autoGoals.length) return;
+  return db.from('workouts').select('date').then(function(rows){
+    var diasDistintos = {};
+    (rows||[]).forEach(function(w){ diasDistintos[w.date]=true; });
+    var totalDias = Object.keys(diasDistintos).length;
+    var updates = autoGoals.map(function(g){
+      var novoProgress = Math.min(100, Math.round(totalDias/g.target_count*100));
+      g.diasFeitos = totalDias; // pra exibição "X/90 dias"
+      if(novoProgress===g.progress) return Promise.resolve();
+      g.progress = novoProgress;
+      return db.from('goals').eq('id',g.id).update({progress:novoProgress});
+    });
+    return Promise.all(updates).then(function(){ renderSection(); });
+  }).catch(function(){ /* não trava a tela por isso */ });
 }
 
 /* ── Render tabs ── */
@@ -134,11 +157,14 @@ function renderHoje(){
     html += '<div class="health-goals">'+
       '<div class="hg-title">❤️ Metas de Saúde</div>'+
       healthGoals.slice(0,5).map(function(g){
+        var isAuto = g.auto_track==='workouts_days';
         return '<div class="hg-row">'+
           '<span class="hg-name">'+esc(g.title)+(g.target?' <span style="font-size:.63rem;color:#aaa">'+esc(g.target)+'</span>':'')+'</span>'+
           '<div class="hg-bar-wrap"><div class="hg-bar-fill" style="width:'+(g.progress||0)+'%"></div></div>'+
           '<span class="hg-pct">'+(g.progress||0)+'%</span>'+
-          '<button class="hg-inc" onclick="incGoal(\''+g.id+'\')">+10%</button>'+
+          (isAuto
+            ? '<span class="hg-auto" title="Conta sozinho pelos treinos registrados">🔗 '+(g.diasFeitos||0)+'/'+g.target_count+' dias</span>'
+            : '<button class="hg-inc" onclick="incGoal(\''+g.id+'\')">+10%</button>')+
         '</div>';
       }).join('')+
       '<a href="../metas/" style="font-size:.7rem;color:#E11D48;font-weight:600;text-decoration:none;display:block;margin-top:8px">Ver todas as metas de saúde →</a>'+
@@ -250,6 +276,7 @@ function quickSaveWorkout(dur){
   db.from('workouts').insert(data).then(function(res){
     dayWorkouts.push(Array.isArray(res)?res[0]:data);
     renderSection();
+    syncAutoTrackGoals();
   }).catch(function(e){alert('Erro: '+e.message);});
 }
 
@@ -622,7 +649,8 @@ function saveWorkout(){
   db.from('workouts').insert(data).then(function(res){
     dayWorkouts.push(Array.isArray(res)?res[0]:data);
     closeModal(); renderSection();
-    // Update goal progress if linked
+    syncAutoTrackGoals();
+    // Update goal progress if linked (metas auto_track ignoram isso, ver incGoal)
     if(data.goal_id) incGoal(data.goal_id);
   }).catch(function(e){alert('Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
@@ -673,13 +701,14 @@ function deleteWorkout(id){
   if(!confirm('Remover este treino?'))return;
   db.from('workouts').eq('id',id).delete().then(function(){
     dayWorkouts=dayWorkouts.filter(function(w){return w.id!==id;}); renderSection();
+    syncAutoTrackGoals();
   }).catch(function(e){alert('Erro: '+e.message);});
 }
 
 /* ── Goal progress ── */
 function incGoal(id){
   var g=healthGoals.find(function(x){return x.id===id;});
-  if(!g)return;
+  if(!g || g.auto_track)return; // meta auto_track já se atualiza sozinha, +10% manual bagunçaria a contagem real
   var newPct=Math.min(100,(g.progress||0)+10);
   db.from('goals').eq('id',id).update({progress:newPct}).then(function(){
     g.progress=newPct; renderSection();
@@ -699,6 +728,7 @@ window.saveMetrics=saveMetrics; window.saveMood=saveMood;
 window.deleteWorkout=deleteWorkout; window.incGoal=incGoal;
 window.pickWkType=pickWkType; window.setRating=setRating; window.toggleMoreDetails=toggleMoreDetails;
 window.pickQuickWkType=pickQuickWkType; window.quickSaveWorkout=quickSaveWorkout;
+window.syncAutoTrackGoals=syncAutoTrackGoals;
 window.quickSaveSleep=quickSaveSleep; window.quickSaveWeight=quickSaveWeight; window.quickSaveMood=quickSaveMood;
 window.renderTreinoOriginal=renderTreinoOriginal;
 

@@ -253,12 +253,21 @@ function openModal(id) {
       '<div class="mf-field"><label>Título *</label><input id="mf-title" type="text" placeholder="O que você quer alcançar?" value="'+esc(g?g.title:'')+'"/></div>'+
       '<div class="mf-field"><label>Descrição</label><textarea id="mf-desc" placeholder="Detalhes, motivação...">'+esc(g?g.description:'')+'</textarea></div>'+
       '<div class="mf-row">'+
-        '<div class="mf-field"><label>Área</label><select id="mf-area">'+
+        '<div class="mf-field"><label>Área</label><select id="mf-area" onchange="toggleAutoTrackField()">'+
           AREAS.map(function(a){return'<option value="'+a.id+'"'+(g&&g.area===a.id?' selected':'')+'>'+a.label+'</option>';}).join('')+
         '</select></div>'+
         '<div class="mf-field"><label>Prazo</label><input id="mf-deadline" type="text" placeholder="Ex: Dez/2026" value="'+esc(g?g.deadline:'')+'"/></div>'+
       '</div>'+
-      '<div class="mf-field"><label>Meta quantitativa</label><input id="mf-target" type="text" placeholder="Ex: R$ 50.000, 10kg, 12 livros" value="'+esc(g?g.target:'')+'"/></div>'+
+      '<div class="mf-field"><label>Meta quantitativa</label><input id="mf-target" type="text" placeholder="Ex: R$ 50.000, 10kg, 90 Dias" value="'+esc(g?g.target:'')+'"/></div>'+
+      '<div class="mf-field" id="autoTrackField" style="display:none">'+
+        '<label><input type="checkbox" id="mf-autotrack" onchange="toggleAutoTrackCount()" '+(g&&g.auto_track==='workouts_days'?'checked':'')+' style="width:auto;margin-right:6px"/>'+
+        '🔗 Contar treinos registrados automaticamente</label>'+
+        '<div id="autoTrackCountWrap" style="margin-top:6px'+(g&&g.auto_track==='workouts_days'?'':';display:none')+'">'+
+          '<label style="font-weight:400;text-transform:none;font-size:.72rem;color:#888">Quantos dias no total? (ex: 90)</label>'+
+          '<input id="mf-target-count" type="number" min="1" value="'+(g&&g.target_count?g.target_count:'')+'" placeholder="90"/>'+
+        '</div>'+
+        '<div style="font-size:.68rem;color:#aaa;margin-top:4px">Toda vez que um treino for registrado no módulo Saúde, essa meta avança sozinha — sem precisar marcar nada manualmente.</div>'+
+      '</div>'+
       parentSelect+
       '<div class="mf-field"><label>Progresso: <span id="mf-pct-val" style="color:#1D4ED8;font-weight:700">'+(g?g.progress:0)+'%</span></label>'+
         '<input type="range" id="mf-progress" min="0" max="100" step="5" value="'+(g?g.progress:0)+'" oninput="document.getElementById(\'mf-pct-val\').textContent=this.value+\'%\'"/></div>'+
@@ -271,6 +280,20 @@ function openModal(id) {
 
   document.getElementById('modalBg').classList.remove('hidden');
   document.getElementById('mf-title').focus();
+  toggleAutoTrackField();
+}
+
+// Contagem automática por enquanto só faz sentido pra Saúde (dias com treino
+// registrado) — o campo só aparece quando a área é essa, pra não confundir com
+// promessa de algo que não existe pras outras áreas ainda.
+function toggleAutoTrackField(){
+  var area = document.getElementById('mf-area').value;
+  var field = document.getElementById('autoTrackField');
+  if (field) field.style.display = area === 'sau' ? '' : 'none';
+}
+function toggleAutoTrackCount(){
+  var on = document.getElementById('mf-autotrack').checked;
+  document.getElementById('autoTrackCountWrap').style.display = on ? '' : 'none';
 }
 
 function openDailyModal() {
@@ -298,6 +321,7 @@ function saveGoal() {
   var title=(document.getElementById('mf-title').value||'').trim();
   if(!title){alert('Digite um título.');return;}
   var pe=document.getElementById('mf-parent');
+  var autoTrackChecked = document.getElementById('mf-autotrack') && document.getElementById('mf-autotrack').checked;
   var data={
     hz:currentHz, title:title,
     description:(document.getElementById('mf-desc').value||'').trim(),
@@ -306,7 +330,9 @@ function saveGoal() {
     target:(document.getElementById('mf-target').value||'').trim(),
     progress:parseInt(document.getElementById('mf-progress').value)||0,
     notes:document.getElementById('mf-notes')?(document.getElementById('mf-notes').value||'').trim():'',
-    parent_id:pe?(pe.value||null):null
+    parent_id:pe?(pe.value||null):null,
+    auto_track: autoTrackChecked ? 'workouts_days' : null,
+    target_count: autoTrackChecked ? (parseInt(document.getElementById('mf-target-count').value)||null) : null
   };
 
   var op;
@@ -397,6 +423,7 @@ window.deleteTask=deleteTask;
 window.markDone=markDone;
 window.toggleDaily=toggleDaily;
 window.quickProgress=quickProgress;
+window.toggleAutoTrackField=toggleAutoTrackField; window.toggleAutoTrackCount=toggleAutoTrackCount;
 
 function setHz(id){ currentHz=id; render(); }
 
