@@ -310,7 +310,7 @@ function iniciarExecucao(rotinaId){
       series[it.id] = [];
       for(var i=0;i<(it.series||3);i++) series[it.id].push({reps_feitas:null, carga_kg:it.carga_sugerida_kg, concluida:false});
     });
-    tState.execucaoAtual = {rotina:rotina, itens:itens, execucaoId:execucao.id, series:series};
+    tState.execucaoAtual = {rotina:rotina, itens:itens, execucaoId:execucao.id, iniciadoEm:execucao.iniciado_em, series:series};
     renderExecucaoAtiva();
   }).catch(function(e){ alert('Erro: '+e.message); });
 }
@@ -374,13 +374,15 @@ function finalizarExecucao(){
       if(s.concluida){ totalSeries++; totalReps += (s.reps_feitas||0); }
     });
   });
+  var agora = new Date();
+  var duracaoMin = ex.iniciadoEm ? Math.max(1, Math.round((agora - new Date(ex.iniciadoEm)) / 60000)) : 45;
   Promise.all(inserts).then(function(){
-    return db.from('treino_execucoes').eq('id',ex.execucaoId).update({finalizado_em: new Date().toISOString()});
+    return db.from('treino_execucoes').eq('id',ex.execucaoId).update({finalizado_em: agora.toISOString()});
   }).then(function(){
     // Compat: resumo também vira um registro simples em workouts (aparece no "Hoje")
     return db.from('workouts').insert({
-      date: todayStrExport(), type:'Musculação', duration_min: 45, intensity: 3,
-      notes: ex.rotina.nome+' — '+totalSeries+' séries concluídas'
+      date: todayStrExport(), type:'Musculação', duration_min: duracaoMin, intensity: 3,
+      notes: ex.rotina.nome+' — '+totalSeries+' série'+(totalSeries===1?'':'s')+' concluída'+(totalSeries===1?'':'s')
     });
   }).then(function(){
     tState.execucaoAtual = null;

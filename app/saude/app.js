@@ -384,21 +384,22 @@ function buildForm(type){
         '<div class="workout-types">'+WORKOUT_TYPES.map(function(t){
           return '<button type="button" class="wt-opt'+(t===wkTypeSelected?' sel':'')+'" onclick="pickWkType(\''+t+'\')">'+t+'</button>';
         }).join('')+'</div></div>'+
-      '<div class="mf-row">'+
-        '<div class="mf-field"><label>Duração (min)</label><input id="mf-dur" type="number" min="0" placeholder="45"/></div>'+
+      '<div class="mf-field"><label>Duração (min)</label><input id="mf-dur" type="number" min="0" placeholder="45" autofocus/></div>'+
+      '<button type="button" class="mf-toggle-more" onclick="toggleMoreDetails(this)">+ Mais detalhes (opcional)</button>'+
+      '<div class="mf-more" style="display:none">'+
         '<div class="mf-field"><label>Calorias gastas</label><input id="mf-cals" type="number" min="0" placeholder="300"/></div>'+
+        '<div class="mf-field"><label>Intensidade</label>'+
+          '<div class="rating-btns" id="intBtns">'+[1,2,3,4,5].map(function(i){
+            return '<button type="button" class="rb'+(i===3?' sel':'')+'" onclick="setRating(\'intensity\','+i+',\'intBtns\')">'+i+'</button>';
+          }).join('')+'</div>'+
+          '<div style="font-size:.68rem;color:#888;margin-top:4px" id="intLbl">'+INT_LABELS[3]+'</div>'+
+        '</div>'+
+        '<div class="mf-field"><label>Vincular meta</label><select id="mf-goal">'+
+          '<option value="">— Nenhuma —</option>'+
+          healthGoals.map(function(g){return'<option value="'+g.id+'">'+esc(g.title)+'</option>';}).join('')+
+        '</select></div>'+
+        '<div class="mf-field"><label>Notas</label><input id="mf-notes" type="text" placeholder="Como foi o treino?"/></div>'+
       '</div>'+
-      '<div class="mf-field"><label>Intensidade</label>'+
-        '<div class="rating-btns" id="intBtns">'+[1,2,3,4,5].map(function(i){
-          return '<button type="button" class="rb'+(i===3?' sel':'')+'" onclick="setRating(\'intensity\','+i+',\'intBtns\')">'+i+'</button>';
-        }).join('')+'</div>'+
-        '<div style="font-size:.68rem;color:#888;margin-top:4px" id="intLbl">'+INT_LABELS[3]+'</div>'+
-      '</div>'+
-      '<div class="mf-field"><label>Vincular meta</label><select id="mf-goal">'+
-        '<option value="">— Nenhuma —</option>'+
-        healthGoals.map(function(g){return'<option value="'+g.id+'">'+esc(g.title)+'</option>';}).join('')+
-      '</select></div>'+
-      '<div class="mf-field"><label>Notas</label><input id="mf-notes" type="text" placeholder="Como foi o treino?"/></div>'+
       '<div class="modal-actions">'+
         '<button class="btn-cancel" onclick="closeModal()">Cancelar</button>'+
         '<button class="btn-save" onclick="saveWorkout()">Salvar</button>'+
@@ -423,16 +424,19 @@ function buildForm(type){
   }
   if(type==='metrics'){
     return '<div class="mf">'+
-      '<div class="mf-row">'+
-        '<div class="mf-field"><label>Peso (kg)</label><input id="mf-wt" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.weight_kg||'')+'"/></div>'+
-        '<div class="mf-field"><label>% Gordura</label><input id="mf-fat" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.fat_pct||'')+'"/></div>'+
+      '<div class="mf-field"><label>Peso (kg)</label><input id="mf-wt" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.weight_kg||'')+'" autofocus/></div>'+
+      '<button type="button" class="mf-toggle-more" onclick="toggleMoreDetails(this)">+ Mais medidas (opcional)</button>'+
+      '<div class="mf-more" style="display:none">'+
+        '<div class="mf-row">'+
+          '<div class="mf-field"><label>% Gordura</label><input id="mf-fat" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.fat_pct||'')+'"/></div>'+
+          '<div class="mf-field"><label>Cintura (cm)</label><input id="mf-waist" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.waist_cm||'')+'"/></div>'+
+        '</div>'+
+        '<div class="mf-row">'+
+          '<div class="mf-field"><label>Quadril (cm)</label><input id="mf-hip" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.hip_cm||'')+'"/></div>'+
+          '<div class="mf-field"><label>Peito (cm)</label><input id="mf-chest" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.chest_cm||'')+'"/></div>'+
+        '</div>'+
+        '<div class="mf-field"><label>Notas</label><input id="mf-notes" type="text" placeholder="Observações..."/></div>'+
       '</div>'+
-      '<div class="mf-row3">'+
-        '<div class="mf-field"><label>Cintura (cm)</label><input id="mf-waist" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.waist_cm||'')+'"/></div>'+
-        '<div class="mf-field"><label>Quadril (cm)</label><input id="mf-hip" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.hip_cm||'')+'"/></div>'+
-        '<div class="mf-field"><label>Peito (cm)</label><input id="mf-chest" type="number" step="0.1" value="'+(dayMetrics&&dayMetrics.chest_cm||'')+'"/></div>'+
-      '</div>'+
-      '<div class="mf-field"><label>Notas</label><input id="mf-notes" type="text" placeholder="Observações..."/></div>'+
       '<div class="modal-actions">'+
         '<button class="btn-cancel" onclick="closeModal()">Cancelar</button>'+
         '<button class="btn-save" onclick="saveMetrics()">Salvar</button>'+
@@ -460,6 +464,14 @@ function ratingField(lbl,cur,btnId,key,emojiMap){
     '<div class="rating-btns" id="'+btnId+'">'+[1,2,3,4,5].map(function(i){
       return '<button type="button" class="rb'+(i===cur?' sel':'')+'" style="font-size:1rem" onclick="setRating(\''+key+'\','+i+',\''+btnId+'\')">'+emojiMap[i]+'</button>';
     }).join('')+'</div></div>';
+}
+
+function toggleMoreDetails(btn){
+  if(!btn.dataset.label) btn.dataset.label = btn.textContent.replace('+ ','');
+  var more = btn.nextElementSibling;
+  var visivel = more.style.display !== 'none';
+  more.style.display = visivel ? 'none' : '';
+  btn.textContent = (visivel ? '+ ' : '− ') + btn.dataset.label;
 }
 
 function pickWkType(t){
@@ -564,7 +576,7 @@ window.openModal=openModal; window.closeModal=closeModal;
 window.saveWorkout=saveWorkout; window.saveSleep=saveSleep;
 window.saveMetrics=saveMetrics; window.saveMood=saveMood;
 window.deleteWorkout=deleteWorkout; window.incGoal=incGoal;
-window.pickWkType=pickWkType; window.setRating=setRating;
+window.pickWkType=pickWkType; window.setRating=setRating; window.toggleMoreDetails=toggleMoreDetails;
 window.renderTreinoOriginal=renderTreinoOriginal;
 
 document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal();});

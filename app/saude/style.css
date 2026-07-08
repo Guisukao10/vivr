@@ -117,6 +117,8 @@ body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:
 .workout-types{display:flex;flex-wrap:wrap;gap:6px}
 .wt-opt{padding:5px 10px;border:1.5px solid #E5E7EB;border-radius:7px;font-size:.74rem;font-weight:600;cursor:pointer;color:#666;transition:all .15s;background:#fff;font-family:inherit}
 .wt-opt.sel{border-color:#E11D48;background:#FFF1F2;color:#E11D48}
+.mf-toggle-more{background:none;border:none;color:#E11D48;font-size:.76rem;font-weight:600;cursor:pointer;padding:2px 0;text-align:left}
+.mf-more{display:flex;flex-direction:column;gap:12px}
 
 /* Modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
