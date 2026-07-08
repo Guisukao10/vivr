@@ -67,71 +67,48 @@ function loadAll() {
 }
 
 /* ── Financial connection ── */
-var financialCache = { ganho: 0, metasVinculadas: 0 };
+var financialCache = { metasVinculadas: 0 };
 function loadFinancialData() {
-  // Lê budget_income (renda planejada) e quantas categorias já estão vinculadas a metas —
-  // mesma base de dados do módulo financeiro, sem duplicar lógica.
-  return Promise.all([
-    db.from('budget_income').select('*'),
-    db.from('categorias').select('goal_id')
-  ]).then(function(res){
-    var income = (res[0]||[])[0];
-    financialCache.ganho = income ? Number(income.value) : 0;
-    financialCache.metasVinculadas = (res[1]||[]).filter(function(c){ return c.goal_id; }).length;
+  // Quantas categorias do financeiro já estão vinculadas a uma meta — mesma base de
+  // dados do módulo financeiro, sem duplicar lógica.
+  return db.from('categorias').select('goal_id').then(function(rows){
+    financialCache.metasVinculadas = (rows||[]).filter(function(c){ return c.goal_id; }).length;
   }).catch(function(){ /* módulo financeiro pode não ter dados ainda — não é erro fatal aqui */ });
 }
 
 /* ── Render ── */
+// Antes eram 4 blocos separados (abas + barra de conexão + grade de visão geral +
+// "cascata" de hierarquia) mostrando basicamente a mesma coisa de formas diferentes —
+// confuso, muita coisa pra olhar antes de entender algo. Agora: as próprias abas já
+// mostram quantas metas tem em cada horizonte, e a barra de conexão ficou com só o
+// que ajuda a decidir algo (quantas ativas/concluídas aqui, quantas já conectadas
+// ao financeiro) — o resto foi cortado, não escondido: era peso sem informação nova.
 function render() {
   renderHorizonTabs();
   renderConnectionBar();
-  renderOverview();
-  renderCascade();
   if (currentHz === 'diario') renderDailyPanel();
   else renderGoalsPanel();
 }
 
 function renderHorizonTabs() {
   document.getElementById('horizonTabs').innerHTML = HORIZONS.map(function(h){
+    var count = allGoals.filter(function(g){ return g.hz===h.id; }).length;
     return '<button class="hz-btn'+(h.id===currentHz?' on':'')+'" onclick="setHz(\''+h.id+'\')">'+
-      '<span class="hz-icon">'+h.icon+'</span><span class="hz-label">'+h.label+'</span></button>';
+      '<span class="hz-icon">'+h.icon+'</span><span class="hz-label">'+h.label+(count?' ('+count+')':'')+'</span></button>';
   }).join('');
 }
 
 function renderConnectionBar() {
   var cur   = allGoals.filter(function(g){ return g.hz===currentHz; });
   var done  = cur.filter(function(g){ return g.progress>=100; }).length;
-  var annual= allGoals.filter(function(g){ return g.hz==='anual'; });
-  var annDone=annual.filter(function(g){ return g.progress>=100; }).length;
 
   document.getElementById('connBar').innerHTML =
-    conn('💰','Financeiro',financialCache.ganho>0?brl(financialCache.ganho)+'/mês':'—',financialCache.ganho>0?'Receita planejada':'Configure no planejador','#15803D')+
-    conn('🔗','Conectadas',financialCache.metasVinculadas,financialCache.metasVinculadas>0?'com progresso automático':'nenhuma categoria vinculada ainda','#0891B2')+
-    conn('🎯','Metas Ativas',cur.length,'no horizonte atual','#1D4ED8')+
-    conn('✅','Concluídas',done+' / '+cur.length,'horizonte atual','#9333EA');
+    conn('🎯','Neste horizonte',cur.length,done+' concluída'+(done===1?'':'s'),'#1D4ED8')+
+    conn('🔗','Conectadas ao financeiro',financialCache.metasVinculadas,financialCache.metasVinculadas>0?'progresso calculado automaticamente':'nenhuma categoria vinculada ainda','#0891B2');
 }
 function conn(icon,lbl,val,sub,color){
   return '<div class="conn-card"><div class="conn-dot" style="background:'+color+'"></div>'+
     '<div><div class="conn-lbl">'+icon+' '+lbl+'</div><div class="conn-val">'+val+'</div><div class="conn-sub">'+sub+'</div></div></div>';
-}
-
-function renderOverview(){
-  document.getElementById('overviewGrid').innerHTML = HORIZONS.map(function(h){
-    var t=allGoals.filter(function(g){return g.hz===h.id;}).length;
-    var d=allGoals.filter(function(g){return g.hz===h.id&&g.progress>=100;}).length;
-    var p=t>0?Math.round(d/t*100):0;
-    return '<div class="ov-card"><div class="ov-num">'+t+'</div><div class="ov-lbl">'+h.icon+' '+h.label+'</div>'+
-      '<div class="ov-bar"><div class="ov-bar-fill" style="width:'+p+'%"></div></div></div>';
-  }).join('');
-}
-
-function renderCascade(){
-  document.getElementById('cascade').innerHTML =
-    '<div class="cascade-title">Hierarquia de metas — do macro ao micro</div>'+
-    '<div class="cascade-row">'+HORIZONS.map(function(h,i){
-      return (i>0?'<span class="cascade-arrow">→</span>':'')+
-        '<span class="cascade-step'+(h.id===currentHz?' cur':'')+'" onclick="setHz(\''+h.id+'\')">'+h.icon+' '+h.label+'</span>';
-    }).join('')+'</div>';
 }
 
 function renderGoalsPanel() {
