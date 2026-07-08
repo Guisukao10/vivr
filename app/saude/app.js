@@ -168,6 +168,20 @@ var quickWkType = 'Musculação';
 var QUICK_WK_TYPES = ['Musculação','Corrida','Caminhada','Outro'];
 var QUICK_DURATIONS = [15,30,45,60,90];
 var QUICK_SLEEP_HOURS = [5,6,7,8,9];
+// Emoções nomeadas em vez de uma escala genérica 1-5 triste→feliz — "3" não diz nada,
+// "Ansioso" diz. Cada uma já carrega humor/energia/estresse plausíveis pra aquele
+// estado (editável depois no modal completo se a pessoa quiser refinar).
+var QUICK_MOODS = [
+  {emoji:'😄',label:'Feliz',     mood:5,energy:4,stress:4},
+  {emoji:'🚀',label:'Animado',   mood:5,energy:5,stress:4},
+  {emoji:'😌',label:'Tranquilo', mood:4,energy:3,stress:5},
+  {emoji:'😐',label:'Neutro',    mood:3,energy:3,stress:3},
+  {emoji:'😴',label:'Cansado',   mood:2,energy:1,stress:3},
+  {emoji:'😟',label:'Ansioso',   mood:2,energy:3,stress:2},
+  {emoji:'😠',label:'Irritado',  mood:2,energy:3,stress:2},
+  {emoji:'🤯',label:'Estressado',mood:2,energy:2,stress:1},
+  {emoji:'😢',label:'Triste',    mood:1,energy:2,stress:3}
+];
 
 function renderQuickLog(){
   if(currentDate!==todayStr()) return ''; // registro rápido só faz sentido pra hoje
@@ -218,8 +232,8 @@ function quickWeightRow(){
 function quickMoodRow(){
   return '<div class="ql-row">'+
     '<div class="ql-lbl">😊 Humor</div>'+
-    '<div class="ql-chips">'+[1,2,3,4,5].map(function(i){
-      return '<button type="button" class="ql-chip ql-emoji" onclick="quickSaveMood('+i+')">'+MOOD_EMOJI[i]+'</button>';
+    '<div class="ql-chips">'+QUICK_MOODS.map(function(m,i){
+      return '<button type="button" class="ql-chip ql-emoji" title="'+m.label+'" onclick="quickSaveMood('+i+')">'+m.emoji+' <span class="ql-emoji-lbl">'+m.label+'</span></button>';
     }).join('')+'</div>'+
   '</div>';
 }
@@ -255,8 +269,9 @@ function quickSaveWeight(){
   }).catch(function(e){alert('Erro: '+e.message);});
 }
 
-function quickSaveMood(mood){
-  var data={id:uid(),date:currentDate,mood:mood,energy:3,stress:3,notes:''};
+function quickSaveMood(idx){
+  var m = QUICK_MOODS[idx];
+  var data={id:uid(),date:currentDate,mood:m.mood,energy:m.energy,stress:m.stress,notes:m.label};
   db.from('mood_logs').insert(data).then(function(res){
     dayMood=Array.isArray(res)?res[0]:data; renderSection();
   }).catch(function(e){alert('Erro: '+e.message);});

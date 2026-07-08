@@ -32,7 +32,8 @@ body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:
 .ql-chip{padding:6px 12px;border:1.5px solid #E5E7EB;border-radius:20px;background:#fff;font-family:inherit;font-size:.76rem;font-weight:600;color:#666;cursor:pointer;transition:all .15s}
 .ql-chip:hover{border-color:#E11D48;color:#E11D48}
 .ql-chip.sel{border-color:#E11D48;background:#FFF1F2;color:#E11D48}
-.ql-chip.ql-emoji{font-size:1rem;padding:5px 10px}
+.ql-chip.ql-emoji{font-size:.95rem;padding:5px 10px;display:flex;align-items:center;gap:4px}
+.ql-emoji-lbl{font-size:.68rem;font-weight:600}
 .ql-input{width:70px;padding:6px 10px;border:1.5px solid #E5E7EB;border-radius:20px;font-family:inherit;font-size:.8rem;outline:none}
 .ql-input:focus{border-color:#E11D48}
 
