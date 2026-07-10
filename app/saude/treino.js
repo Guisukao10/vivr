@@ -137,7 +137,7 @@ function excluirRotina(id){
   db.from('rotinas').eq('id',id).delete().then(function(){
     tState.rotinas = tState.rotinas.filter(function(r){return r.id!==id;});
     renderTreinoBody();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 function renderRotinaForm(){
@@ -210,7 +210,7 @@ function salvarRotina(){
   var r = tState.rotinaEditando;
   r.nome = (document.getElementById('rNome').value||'').trim();
   r.objetivo = document.getElementById('rObjetivo').value;
-  if(!r.nome){ alert('Dê um nome pra rotina.'); return; }
+  if(!r.nome){ showToast('Dê um nome pra rotina'); return; }
   var itensValidos = r.itens.filter(function(it){return it.exercicio_id;});
 
   var payload = {nome:r.nome, objetivo:r.objetivo, dias_semana:r.dias_semana};
@@ -234,7 +234,7 @@ function salvarRotina(){
     if(idx===-1) tState.rotinas.push(saved); else tState.rotinas[idx]=saved;
     tState.rotinaEditando = null;
     renderTreinoBody();
-  }).catch(function(e){ alert('Erro ao salvar: '+e.message); });
+  }).catch(function(e){ showToast('⚠️ Erro ao salvar: '+e.message); });
 }
 
 /* ── Sugestão automática (regra, não LLM) ── */
@@ -275,7 +275,7 @@ function suggestRotinas(objetivo, dias){
   Promise.all(ops).then(function(rotinas){
     tState.rotinas = tState.rotinas.concat(rotinas);
     renderTreinoBody();
-  }).catch(function(e){ alert('Erro ao gerar sugestão: '+e.message); });
+  }).catch(function(e){ showToast('⚠️ Erro ao gerar sugestão: '+e.message); });
 }
 
 /* ── Executar treino ── */
@@ -312,7 +312,7 @@ function iniciarExecucao(rotinaId){
     });
     tState.execucaoAtual = {rotina:rotina, itens:itens, execucaoId:execucao.id, iniciadoEm:execucao.iniciado_em, series:series};
     renderExecucaoAtiva();
-  }).catch(function(e){ alert('Erro: '+e.message); });
+  }).catch(function(e){ showToast('⚠️ Erro: '+e.message); });
 }
 
 function renderExecucaoAtiva(){
@@ -389,7 +389,7 @@ function finalizarExecucao(){
     window._treinoAvancadoLoaded = false;
     renderTreino();
     if(window.syncAutoTrackGoals) window.syncAutoTrackGoals();
-  }).catch(function(e){ alert('Erro ao salvar: '+e.message); });
+  }).catch(function(e){ showToast('⚠️ Erro ao salvar: '+e.message); });
 }
 
 /* ── Compartilhar com personal ── */
@@ -418,7 +418,7 @@ function gerarConviteTrainer(){
     document.getElementById('trainerCode').innerHTML =
       '<div class="grp-code-row" style="max-width:300px"><span>Código pro personal</span><strong>'+tEsc(code)+'</strong></div>';
     renderCompartilharTab();
-  }).catch(function(e){ alert('Erro: '+e.message); });
+  }).catch(function(e){ showToast('⚠️ Erro: '+e.message); });
 }
 
 function revogarTrainer(id){

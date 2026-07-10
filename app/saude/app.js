@@ -37,6 +37,16 @@ function shiftDate(str,days){
 }
 function stars(n,total){ total=total||5; var s=''; for(var i=1;i<=total;i++) s+='<span class="star '+(i<=n?'on':'off')+'">★</span>'; return '<div class="stars">'+s+'</div>'; }
 
+/* Toast não-bloqueante — alert() trava a página inteira pra avisar qualquer coisa */
+var _toastEl=null,_toastTimer=null;
+function showToast(msg){
+  if(!_toastEl){ _toastEl=document.createElement('div'); _toastEl.className='sd-toast'; document.body.appendChild(_toastEl); }
+  _toastEl.textContent=msg;
+  _toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){ _toastEl.classList.remove('show'); },2500);
+}
+
 /* ── Load ── */
 function loadDay(){
   document.getElementById('mainPanel').innerHTML='<div class="loading">⏳ Carregando...</div>';
@@ -122,6 +132,9 @@ function renderHoje(){
 
   html += renderQuickLog();
 
+  /* Panorama da semana — "como estou indo" sem precisar navegar dia a dia */
+  html += '<div id="weekSummary"></div>';
+
   /* Overview cards */
   html += '<div class="day-overview">';
 
@@ -182,6 +195,56 @@ function renderHoje(){
     '</div></div>';
 
   document.getElementById('mainPanel').innerHTML = html;
+  loadWeekSummary();
+}
+
+/* ── Sua semana ──
+   Quatro números que respondem "como foi minha semana" de relance: dias com treino
+   (+ sequência atual), média de sono, peso mais recente com tendência, humor médio.
+   Carrega depois do render principal pra não atrasar a tela. */
+function loadWeekSummary(){
+  var dias7=[]; for(var i=6;i>=0;i--) dias7.push(shiftDate(todayStr(),-i));
+  var d0=dias7[0];
+  Promise.all([
+    db.from('workouts').select('date'),
+    db.from('sleep_logs').gte('date',d0).select('date,hours'),
+    db.from('body_metrics').order('date',{ascending:false}).limit(2).select('date,weight_kg'),
+    db.from('mood_logs').gte('date',d0).select('date,mood')
+  ]).then(function(res){
+    var el=document.getElementById('weekSummary');
+    if(!el) return; // pessoa já saiu da aba Hoje
+
+    // treinos: dias distintos na semana + sequência terminando hoje/ontem
+    var diasTreino={}; (res[0]||[]).forEach(function(w){ diasTreino[w.date]=true; });
+    var naSemana=dias7.filter(function(d){ return diasTreino[d]; }).length;
+    var streak=0, cursor=todayStr();
+    if(!diasTreino[cursor]) cursor=shiftDate(cursor,-1); // dia atual ainda em aberto não quebra a sequência
+    while(diasTreino[cursor]){ streak++; cursor=shiftDate(cursor,-1); }
+
+    var sonos=res[1]||[];
+    var mediaSono=sonos.length? sonos.reduce(function(s,r){return s+(parseFloat(r.hours)||0);},0)/sonos.length : null;
+
+    var pesos=(res[2]||[]).filter(function(r){return r.weight_kg;});
+    var pesoAtual=pesos[0]||null, pesoAnt=pesos[1]||null;
+    var deltaPeso=pesoAtual&&pesoAnt? (parseFloat(pesoAtual.weight_kg)-parseFloat(pesoAnt.weight_kg)) : null;
+
+    var humores=res[3]||[];
+    var mediaHumor=humores.length? Math.round(humores.reduce(function(s,r){return s+(r.mood||3);},0)/humores.length) : null;
+
+    function wCard(icon,val,sub){
+      return '<div class="ws-card"><div class="ws-icon">'+icon+'</div><div class="ws-val">'+val+'</div><div class="ws-sub">'+sub+'</div></div>';
+    }
+    el.innerHTML='<div class="week-summary">'+
+      '<div class="ws-title">📅 Sua semana</div>'+
+      '<div class="ws-grid">'+
+        wCard('💪', naSemana+' de 7 dias', streak>=2?'🔥 '+streak+' dias seguidos':'com treino')+
+        wCard('😴', mediaSono!==null? mediaSono.toFixed(1).replace('.',',')+'h' : '—', mediaSono!==null?'média de sono':'sem registros')+
+        wCard('⚖️', pesoAtual? pesoAtual.weight_kg+'kg' : '—',
+          deltaPeso!==null? (deltaPeso>0?'▲ +':deltaPeso<0?'▼ ':'= ')+Math.abs(deltaPeso).toFixed(1).replace('.',',')+'kg vs anterior'
+          : pesoAtual?'última medição':'sem registros')+
+        wCard(mediaHumor?MOOD_EMOJI[mediaHumor]:'😊', mediaHumor? ({1:'Difícil',2:'Baixo',3:'Neutro',4:'Bom',5:'Ótimo'})[mediaHumor] : '—', mediaHumor?'humor médio':'sem registros')+
+      '</div></div>';
+  }).catch(function(){ /* painel é bônus — nunca quebra a tela por causa dele */ });
 }
 
 /* ── Registro rápido de hoje ──
@@ -277,23 +340,23 @@ function quickSaveWorkout(dur){
     dayWorkouts.push(Array.isArray(res)?res[0]:data);
     renderSection();
     syncAutoTrackGoals();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 function quickSaveSleep(hours){
   var data={id:uid(),date:currentDate,bedtime:null,wake_time:null,hours:hours,quality:3,notes:''};
   db.from('sleep_logs').insert(data).then(function(res){
     daySleep=Array.isArray(res)?res[0]:data; renderSection();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 function quickSaveWeight(){
   var val = parseFloat(document.getElementById('qlWeight').value);
-  if(!val){alert('Digite o peso.');return;}
+  if(!val){showToast('Digite o peso primeiro');return;}
   var data={id:uid(),date:currentDate,weight_kg:val,fat_pct:null,waist_cm:null,hip_cm:null,chest_cm:null,notes:''};
   db.from('body_metrics').insert(data).then(function(res){
     dayMetrics=Array.isArray(res)?res[0]:data; renderSection();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 function quickSaveMood(idx){
@@ -301,7 +364,7 @@ function quickSaveMood(idx){
   var data={id:uid(),date:currentDate,mood:m.mood,energy:m.energy,stress:m.stress,notes:m.label};
   db.from('mood_logs').insert(data).then(function(res){
     dayMood=Array.isArray(res)?res[0]:data; renderSection();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 function doCard(icon,lbl,val,sub,color,section){
@@ -636,7 +699,7 @@ function setRating(key,val,btnId){
 /* ── Save functions ── */
 function saveWorkout(){
   var dur=parseInt(document.getElementById('mf-dur').value)||0;
-  if(!dur){alert('Informe a duração.');return;}
+  if(!dur){showToast('Informe a duração do treino');return;}
   var calsBurned=parseInt(document.getElementById('mf-cals').value)||0;
   var data={
     id:uid(), date:currentDate, type:wkTypeSelected,
@@ -652,13 +715,13 @@ function saveWorkout(){
     syncAutoTrackGoals();
     // Update goal progress if linked (metas auto_track ignoram isso, ver incGoal)
     if(data.goal_id) incGoal(data.goal_id);
-  }).catch(function(e){alert('Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
 
 function saveSleep(){
   var bed=document.getElementById('mf-bed').value;
   var wake=document.getElementById('mf-wake').value;
-  if(!bed||!wake){alert('Informe horário de dormir e acordar.');return;}
+  if(!bed||!wake){showToast('Informe os horários de dormir e acordar');return;}
   // Calc hours
   var bParts=bed.split(':'), wParts=wake.split(':');
   var bMin=parseInt(bParts[0])*60+parseInt(bParts[1]);
@@ -670,7 +733,7 @@ function saveSleep(){
   var op=daySleep?db.from('sleep_logs').eq('id',daySleep.id).update(data):db.from('sleep_logs').insert(data);
   document.querySelector('.btn-save').textContent='Salvando...';
   op.then(function(res){ daySleep=Array.isArray(res)?res[0]:data; closeModal(); renderSection(); })
-    .catch(function(e){alert('Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
+    .catch(function(e){showToast('⚠️ Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
 
 function saveMetrics(){
@@ -685,7 +748,7 @@ function saveMetrics(){
   var op=dayMetrics?db.from('body_metrics').eq('id',dayMetrics.id).update(data):db.from('body_metrics').insert(data);
   document.querySelector('.btn-save').textContent='Salvando...';
   op.then(function(res){ dayMetrics=Array.isArray(res)?res[0]:data; closeModal(); renderSection(); })
-    .catch(function(e){alert('Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
+    .catch(function(e){showToast('⚠️ Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
 
 function saveMood(){
@@ -694,7 +757,7 @@ function saveMood(){
   var op=dayMood?db.from('mood_logs').eq('id',dayMood.id).update(data):db.from('mood_logs').insert(data);
   document.querySelector('.btn-save').textContent='Salvando...';
   op.then(function(res){ dayMood=Array.isArray(res)?res[0]:data; closeModal(); renderSection(); })
-    .catch(function(e){alert('Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
+    .catch(function(e){showToast('⚠️ Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
 
 function deleteWorkout(id){
@@ -702,7 +765,7 @@ function deleteWorkout(id){
   db.from('workouts').eq('id',id).delete().then(function(){
     dayWorkouts=dayWorkouts.filter(function(w){return w.id!==id;}); renderSection();
     syncAutoTrackGoals();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 /* ── Goal progress ── */
@@ -712,7 +775,7 @@ function incGoal(id){
   var newPct=Math.min(100,(g.progress||0)+10);
   db.from('goals').eq('id',id).update({progress:newPct}).then(function(){
     g.progress=newPct; renderSection();
-  }).catch(function(e){alert('Erro: '+e.message);});
+  }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
 /* ── Navigation ── */
@@ -729,6 +792,7 @@ window.deleteWorkout=deleteWorkout; window.incGoal=incGoal;
 window.pickWkType=pickWkType; window.setRating=setRating; window.toggleMoreDetails=toggleMoreDetails;
 window.pickQuickWkType=pickQuickWkType; window.quickSaveWorkout=quickSaveWorkout;
 window.syncAutoTrackGoals=syncAutoTrackGoals;
+window.showToast=showToast;
 window.quickSaveSleep=quickSaveSleep; window.quickSaveWeight=quickSaveWeight; window.quickSaveMood=quickSaveMood;
 window.renderTreinoOriginal=renderTreinoOriginal;
 

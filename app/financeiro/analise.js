@@ -270,9 +270,11 @@ const AnalisePage = (function () {
       </div>`).join('');
   }
 
-  // Metas financeiras com categoria vinculada — progresso já veio calculado
+  // Metas com categoria vinculada (qualquer área) — progresso já veio calculado
   // (StorageService.sincronizarProgressoMetas roda no boot da página).
+  // Mostra o status em dinheiro: quanto já foi guardado × quanto a meta precisa.
   function renderMetasFinanceiras() {
+    const AREA_LABEL = { fin: 'Financeiro', sau: 'Saúde', apr: 'Aprendizado', rel: 'Relacionamentos', pes: 'Pessoal', pro: 'Profissional' };
     const box = document.getElementById('metasFinBox');
     const list = document.getElementById('metasFinList');
     if (!box || !list || !StorageService.getMetasFinanceirasVinculadas) return;
@@ -281,10 +283,16 @@ const AnalisePage = (function () {
     box.style.display = '';
     list.innerHTML = vinculadas.map((v) => {
       const pct = v.progressoCalculado !== null ? v.progressoCalculado : (v.goal.progress || 0);
+      const areaTag = v.goal.area && v.goal.area !== 'fin'
+        ? `<span class="fin-goal-area">${AREA_LABEL[v.goal.area] || v.goal.area}</span>` : '';
+      const dinheiro = v.alvo
+        ? `<span class="fin-goal-money">${Utils.formatCurrency(v.somaReal)} de ${Utils.formatCurrency(v.alvo)}</span>`
+        : `<span class="fin-goal-money">${Utils.formatCurrency(v.somaReal)} guardados</span>`;
       return `<div class="fin-goal-row">
-        <span class="fin-goal-name">${v.goal.title}</span>
+        <span class="fin-goal-name">${v.goal.title} ${areaTag}</span>
         <div class="fin-goal-track"><div class="fin-goal-fill" style="width:${pct}%"></div></div>
         <span class="fin-goal-pct">${pct}%</span>
+        ${dinheiro}
       </div>`;
     }).join('');
   }

@@ -262,7 +262,14 @@ const CadastrosPage = (function () {
     container.innerHTML = '';
     if (!items.length) { container.textContent = 'Nenhum item cadastrado.'; return; }
 
-    const metas = (StorageService.getGoals ? StorageService.getGoals() : []).filter((g) => g.area === 'fin');
+    // Qualquer meta pode precisar de dinheiro (viagem, curso, intercâmbio...) —
+    // todas as áreas entram, agrupadas, com Financeiro primeiro.
+    const AREA_LABEL = { fin: 'Financeiro', sau: 'Saúde', apr: 'Aprendizado', rel: 'Relacionamentos', pes: 'Pessoal', pro: 'Profissional' };
+    const metas = (StorageService.getGoals ? StorageService.getGoals() : []).slice()
+      .sort((a, b) => {
+        if ((a.area === 'fin') !== (b.area === 'fin')) return a.area === 'fin' ? -1 : 1;
+        return String(a.area).localeCompare(String(b.area)) || String(a.title).localeCompare(String(b.title));
+      });
 
     const table = document.createElement('table');
     table.className = 'grid-table small-table';
@@ -277,7 +284,10 @@ const CadastrosPage = (function () {
       const metaCol = document.createElement('td');
       const select = document.createElement('select');
       select.innerHTML = '<option value="">— nenhuma —</option>' +
-        metas.map((g) => `<option value="${g.id}"${g.id === item.goalId ? ' selected' : ''}>${g.title}</option>`).join('');
+        metas.map((g) => {
+          const areaTag = AREA_LABEL[g.area] || g.area || '';
+          return `<option value="${g.id}"${g.id === item.goalId ? ' selected' : ''}>${g.title}${areaTag && g.area !== 'fin' ? ' · ' + areaTag : ''}</option>`;
+        }).join('');
       select.onchange = () => vincularMeta(item.id, select.value);
       metaCol.appendChild(select);
 
