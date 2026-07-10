@@ -79,16 +79,26 @@ const LancamentosPage = (function () {
     if (catId) dom.categoria.value = catId;
   }
 
-  // Autocomplete: sugere descrições já usadas na mesma categoria (mais frequentes primeiro),
-  // e ao bater exato com uma descrição anterior, pré-preenche valor/pagamento pra agilizar.
+  // Autocomplete com TODAS as descrições já usadas (qualquer categoria, sem limite),
+  // como os dropdowns da planilha: as da categoria atual vêm primeiro, depois as demais
+  // por frequência. Descrição nova entra sozinha na lista assim que o lançamento salva,
+  // porque a lista nasce do próprio histórico.
   function atualizarSugestoesDescricao() {
     if (!dom.descSuggestions) return;
     const categoriaId = dom.categoria.value;
-    const todos = StorageService.getLancamentos().filter((l) => l.categoriaId === categoriaId);
     const freq = {};
-    todos.forEach((l) => { if (l.descricao) freq[l.descricao] = (freq[l.descricao] || 0) + 1; });
-    const top = Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 15);
-    dom.descSuggestions.innerHTML = top.map((d) => `<option value="${d.replace(/"/g, '&quot;')}"></option>`).join('');
+    StorageService.getLancamentos().forEach((l) => {
+      const d = (l.descricao || '').trim();
+      if (!d) return;
+      if (!freq[d]) freq[d] = { count: 0, daCategoria: false };
+      freq[d].count += 1;
+      if (l.categoriaId === categoriaId) freq[d].daCategoria = true;
+    });
+    const ordenadas = Object.keys(freq).sort((a, b) => {
+      if (freq[a].daCategoria !== freq[b].daCategoria) return freq[a].daCategoria ? -1 : 1;
+      return freq[b].count - freq[a].count;
+    });
+    dom.descSuggestions.innerHTML = ordenadas.map((d) => `<option value="${d.replace(/"/g, '&quot;')}"></option>`).join('');
   }
 
   function preencherPorDescricaoConhecida() {
