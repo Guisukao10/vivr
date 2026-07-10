@@ -46,7 +46,7 @@ const LancamentosPage = (function () {
       btnTipoDespesa: document.getElementById('btnTipoDespesa'),
       btnTipoReceita: document.getElementById('btnTipoReceita'),
       btnToggleDetalhes: document.getElementById('btnToggleDetalhes'),
-      lcDetalhes: [document.getElementById('lcDetalhes'), document.getElementById('lcDetalhes2'), document.getElementById('lcDetalhes3')],
+      lcDetalhes: [document.getElementById('lcDetalhes'), document.getElementById('lcDetalhes2')],
       btnToggleMaisFiltros: document.getElementById('btnToggleMaisFiltros'),
       maisFiltros: document.getElementById('maisFiltros'),
     };
@@ -194,17 +194,31 @@ const LancamentosPage = (function () {
     return Promise.resolve(montarPayload(subcategoriaId));
   }
 
+  // Mapas id→nome pra tabela ler como a planilha (Responsável / Pagamento por extenso)
+  function nomePorId(lista, id) {
+    const found = (lista || []).find((x) => x.id === id);
+    return found ? found.nome : '';
+  }
+
   function renderTable(lancamentos) {
     dom.tabelaCorpo.innerHTML = '';
+    const responsaveis = StorageService.getResponsaveis();
+    const pagamentos = StorageService.getTiposPagamento();
     lancamentos.forEach((item) => {
       const tr = document.createElement('tr');
+      tr.dataset.rowId = item.id;
+      tr.title = 'Duplo clique para editar';
       const cor = item.tipo === 'receita' ? '#15803D' : '#B91C1C';
       const sinal = item.tipo === 'receita' ? '+' : '-';
+      const obs = item.obs || item.observacao || '';
       tr.innerHTML = `
-        <td>${Utils.formatDate(item.data)}</td>
-        <td>${item.descricao}</td>
+        <td style="white-space:nowrap">${Utils.formatDate(item.data)}</td>
+        <td>${nomePorId(responsaveis, item.responsavelId)}</td>
         <td>${UI.mapCategoryName(item.categoriaId)}</td>
-        <td style="color:${cor};font-weight:700">${sinal} ${Utils.formatCurrency(item.valor)}</td>
+        <td>${nomePorId(pagamentos, item.pagamentoId)}</td>
+        <td>${item.descricao}</td>
+        <td style="color:${cor};font-weight:700;white-space:nowrap">${sinal} ${Utils.formatCurrency(item.valor)}</td>
+        <td style="color:#888;font-size:.78rem">${obs}</td>
         <td class="action-cell">
           <button class="btn btn-small btn-info" data-action="editar" data-id="${item.id}">Editar</button>
           <button class="btn btn-small btn-danger" data-action="excluir" data-id="${item.id}">Excluir</button>
@@ -255,8 +269,16 @@ const LancamentosPage = (function () {
 
   function atualizarResumo(lista) {
     dom.contadorRegistros.textContent = lista.length;
-    const total = lista.reduce((sum, item) => sum + Number(item.valor || 0), 0);
-    dom.totalFiltrado.textContent = Utils.formatCurrency(total);
+    let gastos = 0, ganhos = 0;
+    lista.forEach((item) => {
+      const v = Number(item.valor || 0);
+      if (item.tipo === 'receita') ganhos += v; else gastos += v;
+    });
+    const partes = [];
+    if (gastos > 0) partes.push(`Gastos ${Utils.formatCurrency(gastos)}`);
+    if (ganhos > 0) partes.push(`Ganhos ${Utils.formatCurrency(ganhos)}`);
+    if (gastos > 0 && ganhos > 0) partes.push(`Saldo ${Utils.formatCurrency(ganhos - gastos)}`);
+    dom.totalFiltrado.textContent = partes.length ? partes.join(' · ') : Utils.formatCurrency(0);
   }
 
   function updateTable() {
@@ -386,6 +408,17 @@ const LancamentosPage = (function () {
           UI.showMessage('Lançamento duplicado.');
         });
       }
+    });
+
+    // Duplo clique em qualquer lugar da linha = editar (atalho da planilha)
+    dom.tabelaCorpo.addEventListener('dblclick', (ev) => {
+      if (ev.target.closest('button')) return;
+      const tr = ev.target.closest('tr[data-row-id]');
+      if (!tr) return;
+      const lancamento = StorageService.getLancamentos().find((item) => item.id === tr.dataset.rowId);
+      if (!lancamento) return;
+      setEditState(lancamento);
+      UI.showMessage('Modo edição ativado para o lançamento selecionado');
     });
 
     dom.tblHead.forEach((th) => {

@@ -28,6 +28,7 @@ function makeChart(id, cfg){
 /* ─── Dados derivados de lancamentos + categorias (StorageService) ─── */
 var classifMap = {}; // {categoriaNome: 'Necessidade'|'Investimento'|'Lazer'}
 var catNomeById = {};
+var catIdByNome = {};
 var allGastos = []; // [{cat, valor, date}]
 var allGanhos = [];
 
@@ -35,17 +36,109 @@ function rebuildDerivedData(){
   var categorias = StorageService.getCategorias();
   classifMap = {};
   catNomeById = {};
+  catIdByNome = {};
   categorias.forEach(function(c){
     catNomeById[c.id] = c.nome;
+    if (c.tipo === 'despesa') catIdByNome[c.nome] = c.id;
     classifMap[c.nome] = c.bucket || 'Necessidade';
   });
 
+  var respNomeById = {};
+  (StorageService.getResponsaveis()||[]).forEach(function(r){ respNomeById[r.id] = r.nome; });
+
   var lancs = StorageService.getLancamentos();
   allGastos = lancs.filter(function(l){ return l.tipo === 'despesa'; }).map(function(l){
-    return { cat: catNomeById[l.categoriaId] || 'Outros', valor: Number(l.valor)||0, date: l.data ? new Date(l.data+'T00:00:00') : null };
+    return {
+      cat: catNomeById[l.categoriaId] || 'Outros',
+      valor: Number(l.valor)||0,
+      date: l.data ? new Date(l.data+'T00:00:00') : null,
+      desc: l.descricao || '',
+      obs: l.obs || l.observacao || '',
+      resp: respNomeById[l.responsavelId] || ''
+    };
   });
   allGanhos = lancs.filter(function(l){ return l.tipo === 'receita'; }).map(function(l){
     return { cat: catNomeById[l.categoriaId] || 'Outros', valor: Number(l.valor)||0, date: l.data ? new Date(l.data+'T00:00:00') : null };
+  });
+}
+
+/* ─── Bucket (Necessidade/Investimento/Lazer) editável por categoria ─── */
+var BUCKETS = ['Necessidade','Investimento','Lazer'];
+var BUCKET_COLOR = {Necessidade:'#1D4ED8',Investimento:'#15803D',Lazer:'#C2410C'};
+var BUCKET_CLS = {Necessidade:'nec',Investimento:'inv',Lazer:'laz'};
+
+function bucketSelectHtml(cat){
+  var id = catIdByNome[cat];
+  if(!id) return '';
+  var cur = classifMap[cat]||'Necessidade';
+  return '<select class="bucket-sel '+BUCKET_CLS[cur]+'" data-cat-id="'+id+'" title="Classificar '+cat.replace(/"/g,'&quot;')+'">'+
+    BUCKETS.map(function(b){
+      return '<option value="'+b+'"'+(b===cur?' selected':'')+'>'+b+'</option>';
+    }).join('')+'</select>';
+}
+
+/* Toast flutuante: confirma que a mudança foi salva no banco sem interromper o fluxo */
+var _toastEl = null, _toastTimer = null;
+function showToast(msg){
+  if(!_toastEl){
+    _toastEl = document.createElement('div');
+    _toastEl.className = 'pj-toast';
+    document.body.appendChild(_toastEl);
+  }
+  _toastEl.textContent = msg;
+  _toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ _toastEl.classList.remove('show'); }, 2200);
+}
+
+function bindBucketSelects(container){
+  container.querySelectorAll('.bucket-sel').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var catNome = catNomeById[sel.dataset.catId] || 'Categoria';
+      StorageService.updateCategoria(sel.dataset.catId, { bucket: sel.value }).then(function(){
+        rebuildDerivedData();
+        renderSimTab();
+        showToast('✓ '+catNome+' agora é '+sel.value);
+      });
+    });
+  });
+}
+
+/* ─── Drill-down: lançamentos de uma categoria no mês ─── */
+function detalheCategoriaHtml(cat, mes){
+  var rows = allGastos.filter(function(r){ return r.cat===cat && monthKey(r.date)===mes; })
+    .sort(function(a,b){ return a.date-b.date; });
+  if(!rows.length) return '<div style="padding:10px;font-size:.75rem;color:#bbb">Nenhum lançamento neste mês.</div>';
+  var html='<table style="width:100%;font-size:.74rem;border-collapse:collapse">';
+  rows.forEach(function(r){
+    html+='<tr style="border-bottom:1px solid #f0f0f0">'+
+      '<td style="padding:4px 8px;color:#888;white-space:nowrap;width:70px">'+r.date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+'</td>'+
+      '<td style="padding:4px 8px">'+r.desc+(r.obs?' <span style="color:#aaa">· '+r.obs+'</span>':'')+'</td>'+
+      '<td style="padding:4px 8px;color:#888;width:90px">'+r.resp+'</td>'+
+      '<td style="padding:4px 8px;text-align:right;font-weight:600;white-space:nowrap;width:100px">'+brl(r.valor)+'</td></tr>';
+  });
+  html+='</table>';
+  return html;
+}
+
+function bindCatDrilldown(container, mes){
+  container.querySelectorAll('tr[data-drill-cat]').forEach(function(tr){
+    tr.style.cursor='pointer';
+    tr.addEventListener('click', function(ev){
+      if(ev.target.closest('.bucket-sel')) return; // clique no seletor não abre/fecha
+      var next = tr.nextElementSibling;
+      if(next && next.classList.contains('cat-detail-row')){
+        next.remove();
+        tr.classList.remove('open');
+        return;
+      }
+      var cat = tr.dataset.drillCat;
+      var det = document.createElement('tr');
+      det.className='cat-detail-row';
+      det.innerHTML='<td colspan="7" style="background:#fcfcfc;padding:2px 10px 8px">'+detalheCategoriaHtml(cat, mes)+'</td>';
+      tr.parentNode.insertBefore(det, tr.nextSibling);
+      tr.classList.add('open');
+    });
   });
 }
 
@@ -101,14 +194,15 @@ function renderAcompanhamento(mesEscolhido){
   if(!hasPlan){
     document.getElementById('acpResume').innerHTML='';
     document.getElementById('acpTable').innerHTML=
-      '<tbody><tr><td colspan="6"><div class="acp-no-plan">'+
+      '<tbody><tr><td colspan="7"><div class="acp-no-plan">'+
       '📋 Nenhum orçamento planejado para '+monthLabel(curMonth)+'. '+
       'Preencha a tabela abaixo para começar a acompanhar seus gastos.</div></td></tr></tbody>';
     return;
   }
 
   var totalPlan = Object.values(planMap).reduce(function(s,v){return s+v;},0);
-  var totalGasto = Object.keys(planMap).reduce(function(s,c){return s+(realMap[c]||0);},0);
+  // gasto total do mês inclui categorias sem orçamento — gasto não some da conta
+  var totalGasto = Object.values(realMap).reduce(function(s,v){return s+v;},0);
   var totalRest = totalPlan - totalGasto;
   var pctUsed = totalPlan>0 ? totalGasto/totalPlan*100 : 0;
   var restCls = totalRest<0?'over':pctUsed>=80?'warn':'ok';
@@ -127,11 +221,12 @@ function renderAcompanhamento(mesEscolhido){
     '<div class="acp-card '+(onTrack?'ok':'warn')+'"><div class="ac-lbl">Ritmo de Gasto</div><div class="ac-val">'+pct(pctUsed,1)+'</div><div class="ac-sub">'+(onTrack?'✓ dentro do ritmo esperado':'⚠ acima do esperado para hoje')+'</div></div>'+
     '<div class="acp-card"><div class="ac-lbl">Esperado hoje</div><div class="ac-val" style="font-size:.9rem">'+brl(expectedSpend)+'</div><div class="ac-sub">com base no dia '+daysPassed+'/'+daysInMonth+'</div></div>';
 
-  var buckets = ['Necessidade','Investimento','Lazer'];
-  var bColor = {Necessidade:'#1D4ED8',Investimento:'#15803D',Lazer:'#C2410C'};
+  var buckets = BUCKETS;
+  var bColor = BUCKET_COLOR;
 
   var html='<thead><tr>'+
     '<th style="text-align:left">Categoria</th>'+
+    '<th style="text-align:center">Tipo</th>'+
     '<th>Orçamento</th><th>Gasto</th><th>Restante</th>'+
     '<th class="t-bar-cell">Progresso</th><th>Status</th></tr></thead><tbody>';
 
@@ -143,7 +238,17 @@ function renderAcompanhamento(mesEscolhido){
   buckets.forEach(function(buck){
     var bCats = sortedCats.filter(function(c){ return (classifMap[c]||'Necessidade')===buck; });
     if(!bCats.length) return;
-    html+='<tr style="background:#f7f7f7"><td colspan="6" style="font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+bColor[buck]+';padding:5px 10px">'+buck+'</td></tr>';
+    var bPlan=0, bGasto=0;
+    bCats.forEach(function(c){ bPlan+=planMap[c]||0; bGasto+=realMap[c]||0; });
+    // categorias do bucket sem orçamento também entram no subtotal de gasto
+    cats.forEach(function(c){
+      if(!planMap[c] && (classifMap[c]||'Necessidade')===buck) bGasto+=realMap[c]||0;
+    });
+    var bRest = bPlan-bGasto;
+    html+='<tr style="background:#f7f7f7"><td colspan="7" style="padding:5px 10px">'+
+      '<span style="font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+bColor[buck]+'">'+buck+'</span>'+
+      '<span style="float:right;font-size:.67rem;color:#888">orçado <strong>'+brl(bPlan)+'</strong> · gasto <strong style="color:'+bColor[buck]+'">'+brl(bGasto)+'</strong> · '+
+      (bRest>=0?'restam <strong style="color:#15803D">'+brl(bRest)+'</strong>':'estourou <strong style="color:#B91C1C">'+brl(Math.abs(bRest))+'</strong>')+'</span></td></tr>';
     bCats.forEach(function(cat){
       var plan = planMap[cat]||0;
       var gasto = realMap[cat]||0;
@@ -154,8 +259,9 @@ function renderAcompanhamento(mesEscolhido){
       var statusTxt = gasto===0?'Não iniciado':rest<0?'Estourou '+brl(Math.abs(rest)):used>=80?'Atenção — '+brl(rest)+' restam':'OK — '+brl(rest)+' restam';
       var statusCls = gasto===0?'ts-empty':rest<0?'ts-over':used>=80?'ts-warn':'ts-ok';
 
-      html+='<tr>'+
-        '<td>'+cat+'</td>'+
+      html+='<tr data-drill-cat="'+cat.replace(/"/g,'&quot;')+'" title="Clique para ver os lançamentos">'+
+        '<td><span class="drill-arrow">▸</span>'+cat+'</td>'+
+        '<td style="text-align:center">'+bucketSelectHtml(cat)+'</td>'+
         '<td class="t-plan">'+brl(plan)+'</td>'+
         '<td class="t-gasto">'+brl(gasto)+'</td>'+
         '<td class="t-rest '+cls+'">'+brl(rest)+'</td>'+
@@ -170,9 +276,12 @@ function renderAcompanhamento(mesEscolhido){
 
   var unplanned = cats.filter(function(c){ return !planMap[c] && realMap[c]>0; });
   if(unplanned.length){
-    html+='<tr style="background:#f7f7f7"><td colspan="6" style="font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;padding:5px 10px">Sem orçamento definido</td></tr>';
+    html+='<tr style="background:#f7f7f7"><td colspan="7" style="font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;padding:5px 10px">Sem orçamento definido</td></tr>';
     unplanned.forEach(function(cat){
-      html+='<tr><td>'+cat+'</td><td class="t-plan" style="color:#ddd">—</td>'+
+      html+='<tr data-drill-cat="'+cat.replace(/"/g,'&quot;')+'" title="Clique para ver os lançamentos">'+
+        '<td><span class="drill-arrow">▸</span>'+cat+'</td>'+
+        '<td style="text-align:center">'+bucketSelectHtml(cat)+'</td>'+
+        '<td class="t-plan" style="color:#ddd">—</td>'+
         '<td class="t-gasto">'+brl(realMap[cat])+'</td>'+
         '<td style="color:#bbb">—</td>'+
         '<td></td>'+
@@ -180,13 +289,16 @@ function renderAcompanhamento(mesEscolhido){
     });
   }
 
-  html+='</tbody><tfoot><tr><td>Total</td><td>'+brl(totalPlan)+'</td><td>'+brl(totalGasto)+'</td>'+
+  html+='</tbody><tfoot><tr><td>Total</td><td></td><td>'+brl(totalPlan)+'</td><td>'+brl(totalGasto)+'</td>'+
     '<td class="t-rest '+restCls+'">'+brl(totalRest)+'</td>'+
     '<td><div class="t-bar-wrap"><div class="t-bar-fill" style="width:'+Math.min(pctUsed,100).toFixed(1)+'%;background:#1a1a1a"></div></div>'+
     '<div style="font-size:.63rem;color:#aaa;text-align:right;margin-top:2px">'+pct(pctUsed,0)+'</div></td>'+
     '<td><span class="t-status '+(restCls==='ok'?'ts-ok':restCls==='warn'?'ts-warn':'ts-over')+'">'+(totalRest>=0?brl(totalRest)+' restam':'Estourou '+brl(Math.abs(totalRest)))+'</span></td></tr></tfoot>';
 
-  document.getElementById('acpTable').innerHTML = html;
+  var acpTbl = document.getElementById('acpTable');
+  acpTbl.innerHTML = html;
+  bindBucketSelects(acpTbl);
+  bindCatDrilldown(acpTbl, curMonth);
 }
 
 function simGetPlanMonths(){
@@ -307,7 +419,7 @@ function renderSimTab(){
       var cAvg = months.length ? cTot/months.length : 0;
       var inpCls = 'p-inp '+pillCls+'-inp';
       html += '<tr><td>'+cat+'</td>';
-      html += '<td style="text-align:center"><span class="pct-pill '+pillCls+'">'+buck.charAt(0)+'</span></td>';
+      html += '<td style="text-align:center">'+(bucketSelectHtml(cat)||'<span class="pct-pill '+pillCls+'">'+buck.charAt(0)+'</span>')+'</td>';
       refMs.forEach(function(m){
         var rv = realMap[cat]&&realMap[cat][m]||0;
         var isLast = m===refMs[refMs.length-1];
@@ -360,6 +472,7 @@ function renderSimTab(){
 
   var tbl = document.getElementById('simTable');
   tbl.innerHTML = html;
+  bindBucketSelects(tbl);
 
   tbl.querySelectorAll('.p-inp').forEach(function(inp){
     inp.addEventListener('input', function(){ inp.classList.toggle('has-val', inp.value!==''); });
@@ -367,7 +480,10 @@ function renderSimTab(){
       var cat = inp.dataset.simCat;
       var month = inp.dataset.simMonth;
       var val = inp.value==='' ? null : parseFloat(inp.value);
-      StorageService.setBudgetPlanValue(cat, month, isNaN(val)?null:val).then(renderSimTab);
+      StorageService.setBudgetPlanValue(cat, month, isNaN(val)?null:val).then(function(){
+        renderSimTab();
+        showToast(val===null||isNaN(val) ? '✓ Orçamento removido' : '✓ '+cat+' ('+monthLabel(month)+'): '+brl(val));
+      });
     });
   });
 

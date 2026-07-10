@@ -56,34 +56,33 @@
         <input type="hidden" id="tipo" value="despesa"/>
       </div>
 
+      <!-- Mesma ordem da planilha: Data · Responsável · Categoria · Tipo · Descrição · Valor · Observação -->
       <div class="form-group">
-        <div style="flex:2"><label>Descrição</label><input type="text" id="descricao" list="descSuggestions" placeholder="Ex: Supermercado, Uber, salário..." required autofocus/>
-          <datalist id="descSuggestions"></datalist></div>
-        <div><label>Valor (R$)</label><input type="number" id="valor" min="0.01" step="0.01" placeholder="0,00" required/></div>
+        <div><label>Data</label><input type="date" id="data" required/></div>
+        <div><label>Responsável</label><select id="responsavel"></select></div>
+        <div><label>Categoria</label><select id="categoria"></select></div>
+        <div><label>Tipo</label><select id="pagamento"></select></div>
       </div>
       <div class="form-group">
-        <div><label>Categoria</label><select id="categoria"></select></div>
-        <div><label>Data</label><input type="date" id="data" required/></div>
+        <div style="flex:2"><label>Descrição</label><input type="text" id="descricao" list="descSuggestions" placeholder="Ex: Mercado, Ifood, Academia..." required autofocus/>
+          <datalist id="descSuggestions"></datalist></div>
+        <div><label>Valor (R$)</label><input type="number" id="valor" min="0.01" step="0.01" placeholder="0,00" required/></div>
+        <div style="flex:2"><label>Observação</label><input type="text" id="obs" placeholder="Opcional"/></div>
       </div>
 
       <button type="button" class="lc-toggle-detalhes" id="btnToggleDetalhes">+ Mais detalhes (opcional)</button>
       <div class="form-group lc-detalhes" id="lcDetalhes" style="display:none">
-        <div><label>Responsável</label><select id="responsavel"></select></div>
         <div><label>Subcategoria</label><select id="subcategoria"></select></div>
         <div><label>Nova subcategoria</label><input type="text" id="subcategoriaNova" placeholder="Nome (se 'Criar nova')" disabled/></div>
       </div>
       <div class="form-group lc-detalhes" id="lcDetalhes2" style="display:none">
         <div><label>Status</label><select id="status"></select></div>
-        <div><label>Forma de pagamento</label><select id="pagamento"></select></div>
         <div><label>Recorrente?</label>
           <select id="recorrente"><option value="nao">Não</option><option value="sim">Sim</option></select>
         </div>
         <div><label>Fixo ou variável</label>
           <select id="fixoVariavel"><option value="variavel">Variável</option><option value="fixo">Fixo</option></select>
         </div>
-      </div>
-      <div class="form-group lc-detalhes" id="lcDetalhes3" style="display:none">
-        <div style="flex:3"><label>Observação</label><input type="text" id="obs" placeholder="Opcional"/></div>
       </div>
 
       <button type="submit" class="btn btn-primary">Salvar lançamento</button>
@@ -99,11 +98,11 @@
       <div><label>Tipo</label>
         <select id="filtroTipo"><option value="">Todos</option><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
       </div>
+      <div><label>Responsável</label><select id="filtroResponsavel"></select></div>
+      <div><label>Categoria</label><select id="filtroCategoria"></select></div>
     </div>
     <button type="button" class="lc-toggle-detalhes" id="btnToggleMaisFiltros">+ Mais filtros</button>
     <div class="form-group lc-detalhes" id="maisFiltros" style="display:none">
-      <div><label>Responsável</label><select id="filtroResponsavel"></select></div>
-      <div><label>Categoria</label><select id="filtroCategoria"></select></div>
       <div><label>Subcategoria</label><select id="filtroSubcategoria"></select></div>
       <div><label>Status</label><select id="filtroStatus"></select></div>
       <div><label>Fixo/Variável</label>
@@ -112,7 +111,7 @@
     </div>
     <button class="btn btn-small" id="btnLimparFiltros" style="margin-top:10px">× Limpar filtros</button>
     <p style="margin-top:10px;font-size:.85rem;color:var(--color-text-secondary)">
-      <span id="contadorRegistros">0</span> lançamento(s) · Total: <strong id="totalFiltrado">R$ 0,00</strong>
+      <span id="contadorRegistros">0</span> lançamento(s) · <strong id="totalFiltrado">R$ 0,00</strong>
     </p>
   </div>
 
@@ -122,9 +121,12 @@
         <thead>
           <tr>
             <th data-sort="data">Data</th>
-            <th>Descrição</th>
+            <th>Responsável</th>
             <th>Categoria</th>
+            <th>Pagamento</th>
+            <th>Descrição</th>
             <th data-sort="valor">Valor</th>
+            <th>Observação</th>
             <th>Ação</th>
           </tr>
         </thead>

@@ -5,7 +5,11 @@ function formatCurrency(value, locale='pt-BR', currency='BRL') {
 }
 
 function formatDate(dateInput, locale='pt-BR') {
-  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  // Data-só ("2026-07-10") precisa de T00:00:00 local — new Date() puro interpreta
+  // como UTC-meia-noite e no Brasil exibe o dia anterior.
+  const date = dateInput instanceof Date
+    ? dateInput
+    : new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateInput) ? dateInput + 'T00:00:00' : dateInput);
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
 }
