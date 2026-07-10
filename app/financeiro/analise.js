@@ -151,6 +151,31 @@ const AnalisePage = (function () {
 
     container.appendChild(buildCard('Média diária de gastos', Utils.formatCurrency(totais.mediaDiariaGastos), 'warning'));
     container.appendChild(buildCard('Onde mais gastou', totais.maiorCategoria, 'info'));
+
+    // Comparação direta com o mês anterior — responde "estou gastando mais ou menos?"
+    const cmp = getGastosVsMesAnterior(periodo);
+    if (cmp) {
+      const seta = cmp.delta > 0 ? '▲' : '▼';
+      const txt = `${seta} ${Math.abs(cmp.deltaPct).toFixed(0)}% (${Utils.formatCurrency(cmp.anterior)} → ${Utils.formatCurrency(cmp.atual)})`;
+      container.appendChild(buildCard('Gastos vs mês anterior', txt, cmp.delta > 0 ? 'danger' : 'success'));
+    }
+  }
+
+  // Gastos do período atual vs o mês imediatamente anterior (histórico completo).
+  function getGastosVsMesAnterior(periodo) {
+    if (!periodo || periodo === 'all') return null;
+    const [mes, ano] = periodo.split('/').map(Number);
+    if (!mes || !ano) return null;
+    const antD = new Date(ano, mes - 2, 1);
+    const compAnt = `${String(antD.getMonth() + 1).padStart(2, '0')}/${antD.getFullYear()}`;
+    const gastosDe = (comp) => getLancamentos()
+      .filter((l) => l.tipo === 'despesa' && Utils.calculateCompetencia(l.data) === comp)
+      .reduce((s, l) => s + Number(l.valor || 0), 0);
+    const atual = gastosDe(periodo);
+    const anterior = gastosDe(compAnt);
+    if (!anterior) return null;
+    const delta = atual - anterior;
+    return { atual, anterior, delta, deltaPct: (delta / anterior) * 100 };
   }
 
   function getSeriesPorMes(periodo) {
@@ -210,6 +235,25 @@ const AnalisePage = (function () {
       labels: series.labels,
       datasets: [{ label: 'Saldo', data: series.saldo, borderColor: '#005f73', backgroundColor: 'rgba(0,95,115,0.16)', fill: true, tension: 0.3 }],
     }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } });
+
+    // Comparativo Entrou × Saiu: sempre os últimos 6 meses do histórico completo,
+    // independente do filtro — comparar meses é o ponto do gráfico.
+    const full = getSeriesPorMes('all');
+    const n = Math.min(6, full.labels.length);
+    charts.comparativo = mountChart('chartComparativo', 'bar', {
+      labels: full.labels.slice(-n),
+      datasets: [
+        { label: 'Entrou', data: full.receita.slice(-n), backgroundColor: 'rgba(21,128,61,.75)', borderRadius: 4 },
+        { label: 'Saiu', data: full.despesa.slice(-n), backgroundColor: 'rgba(185,28,28,.7)', borderRadius: 4 },
+      ],
+    }, {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 14, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + Utils.formatCurrency(c.parsed.y) } },
+      },
+      scales: { y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (v) => 'R$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v) } }, x: { ticks: { font: { size: 10 } } } },
+    });
   }
 
   function renderGastosPorResponsavel(periodo) {

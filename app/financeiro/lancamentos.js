@@ -8,6 +8,9 @@ const LancamentosPage = (function () {
     sortField: 'data',
     sortDir: 'desc',
     editingId: null,
+    // Tabela começa oculta: com 600+ lançamentos, despejar tudo na tela não ajuda
+    // ninguém. Filtrou → aparece filtrado. "Ver tudo" mostra sem critério.
+    tabelaVisivel: false,
   };
 
   var dom = {};
@@ -40,6 +43,7 @@ const LancamentosPage = (function () {
       filtroStatus: document.getElementById('filtroStatus'),
       filtroFixoVariavel: document.getElementById('filtroFixoVariavel'),
       btnLimparFiltros: document.getElementById('btnLimparFiltros'),
+      btnVerTudo: document.getElementById('btnVerTudo'),
       tblHead: document.querySelectorAll('#tabelaLancamentos th[data-sort]'),
       btnCancelarEdicao: document.getElementById('btnCancelarEdicao'),
       descSuggestions: document.getElementById('descSuggestions'),
@@ -291,7 +295,20 @@ const LancamentosPage = (function () {
     dom.totalFiltrado.textContent = partes.length ? partes.join(' · ') : Utils.formatCurrency(0);
   }
 
+  function temFiltroAtivo() {
+    const f = getFiltros();
+    return Object.values(f).some((v) => v !== '' && v !== null && v !== undefined);
+  }
+
   function updateTable() {
+    if (!temFiltroAtivo() && !state.tabelaVisivel) {
+      dom.tabelaCorpo.innerHTML =
+        '<tr><td colspan="8" style="text-align:center;padding:28px;color:#aaa;font-size:.85rem">' +
+        '🔎 Use os filtros acima para ver seus lançamentos — ou clique em <strong>Ver tudo</strong>.</td></tr>';
+      dom.contadorRegistros.textContent = StorageService.getLancamentos().length;
+      dom.totalFiltrado.textContent = 'filtre para ver os totais';
+      return;
+    }
     let dados = StorageService.getLancamentos();
     dados = filtrarLancamentos(dados);
     dados = ordenarLancamentos(dados);
@@ -376,6 +393,11 @@ const LancamentosPage = (function () {
 
     dom.btnCancelarEdicao.addEventListener('click', () => resetForm());
 
+    dom.btnVerTudo.addEventListener('click', () => {
+      state.tabelaVisivel = true;
+      updateTable();
+    });
+
     dom.btnLimparFiltros.addEventListener('click', () => {
       dom.filtroTexto.value = '';
       dom.filtroCompetencia.value = '';
@@ -385,6 +407,7 @@ const LancamentosPage = (function () {
       dom.filtroSubcategoria.value = '';
       dom.filtroStatus.value = '';
       dom.filtroFixoVariavel.value = '';
+      state.tabelaVisivel = false; // volta ao estado recolhido
       updateTable();
     });
 

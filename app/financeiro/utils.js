@@ -71,14 +71,22 @@ function generateId(prefix='id') {
   return `${prefix}-${Date.now()}-${random}`;
 }
 
+// Mesmo cuidado do formatDate: "2026-07-01" sem hora é UTC-meia-noite, que no Brasil
+// vira 30/06 e joga o lançamento na competência do mês anterior.
+function parseLocalDate(dateInput) {
+  if (dateInput instanceof Date) return dateInput;
+  const str = String(dateInput || '');
+  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(str) ? str + 'T00:00:00' : dateInput);
+}
+
 function calculateMonth(dateInput) {
-  const d = new Date(dateInput);
+  const d = parseLocalDate(dateInput);
   if (Number.isNaN(d.getTime())) return null;
   return d.getMonth() + 1;
 }
 
 function calculateYear(dateInput) {
-  const d = new Date(dateInput);
+  const d = parseLocalDate(dateInput);
   if (Number.isNaN(d.getTime())) return null;
   return d.getFullYear();
 }
@@ -90,7 +98,7 @@ function calculateCompetencia(dateInput) {
 }
 
 function getWeekday(dateInput, locale='pt-BR') {
-  const d = new Date(dateInput);
+  const d = parseLocalDate(dateInput);
   if (Number.isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(d);
 }
