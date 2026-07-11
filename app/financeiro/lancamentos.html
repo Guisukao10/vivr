@@ -46,6 +46,8 @@
     <p>Cadastro e listagem de transações</p>
   </header>
 
+  <div class="panel" id="contasMesPanel" style="display:none"></div>
+
   <div id="lancamentoFormWrap">
     <form class="panel" id="lancamentoForm">
       <h3>Novo lançamento</h3>
@@ -67,6 +69,7 @@
         <div style="flex:2"><label>Descrição</label><input type="text" id="descricao" list="descSuggestions" placeholder="Ex: Mercado, Ifood, Academia..." required autofocus/>
           <datalist id="descSuggestions"></datalist></div>
         <div><label>Valor (R$)</label><input type="number" id="valor" min="0.01" step="0.01" placeholder="0,00" required/></div>
+        <div style="max-width:110px"><label>Parcelas</label><input type="number" id="parcelas" min="1" max="120" step="1" placeholder="1x" title="Valor de CADA parcela no campo Valor. Ex: 27 parcelas de R$ 1.500 → Valor 1500, Parcelas 27"/></div>
         <div style="flex:2"><label>Observação</label><input type="text" id="obs" placeholder="Opcional"/></div>
       </div>
 

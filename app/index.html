@@ -126,12 +126,33 @@ function setStat(id, text, cls){
 function todayKey(){ var n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
 function monthPrefix(){ var n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
 
-db.from('lancamentos').select('tipo,valor,data').then(function(rows){
+Promise.all([
+  db.from('lancamentos').select('tipo,valor,data'),
+  db.from('budget_plan').eq('month',monthPrefix()).select('value')
+]).then(function(res){
   var mes = monthPrefix();
-  var doMes = (rows||[]).filter(function(l){ return (l.data||'').indexOf(mes)===0; });
+  var doMes = (res[0]||[]).filter(function(l){ return (l.data||'').indexOf(mes)===0; });
   if (!doMes.length) { setStat('stat-fin','Nenhum lançamento este mês'); return; }
-  var saldo = doMes.reduce(function(s,l){ return s + (l.tipo==='despesa' ? -Number(l.valor) : Number(l.valor)); }, 0);
-  setStat('stat-fin', 'Saldo do mês: '+brl(saldo), saldo>=0?'ok':'warn');
+  var saldo = 0, gastoMes = 0;
+  doMes.forEach(function(l){
+    var v = Number(l.valor)||0;
+    if (l.tipo==='despesa') { saldo -= v; gastoMes += v; } else saldo += v;
+  });
+  var texto = 'Saldo do mês: '+brl(saldo);
+  // "pode gastar R$ X/dia": orçamento do planejador menos gasto, dividido pelos dias restantes
+  var plano = (res[1]||[]).reduce(function(s,r){ return s+Number(r.value||0); },0);
+  if (plano > 0) {
+    var hoje = new Date();
+    var diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+    var diasRestantes = Math.max(1, diasNoMes - hoje.getDate() + 1);
+    var disponivel = plano - gastoMes;
+    texto += disponivel >= 0
+      ? ' · pode gastar '+brl(disponivel/diasRestantes)+'/dia'
+      : ' · orçamento estourado em '+brl(-disponivel);
+    setStat('stat-fin', texto, disponivel >= 0 && saldo >= 0 ? 'ok' : 'warn');
+    return;
+  }
+  setStat('stat-fin', texto, saldo>=0?'ok':'warn');
 }).catch(function(){ setStat('stat-fin','Sem dados ainda'); });
 
 db.from('goals').select('hz,progress').then(function(rows){

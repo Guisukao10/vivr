@@ -26,6 +26,7 @@ const LancamentosPage = (function () {
       subcategoriaNova: document.getElementById('subcategoriaNova'),
       descricao: document.getElementById('descricao'),
       valor: document.getElementById('valor'),
+      parcelas: document.getElementById('parcelas'),
       obs: document.getElementById('obs'),
       status: document.getElementById('status'),
       recorrente: document.getElementById('recorrente'),
@@ -214,6 +215,124 @@ const LancamentosPage = (function () {
     return found ? found.nome : '';
   }
 
+  // Soma meses a uma data ISO mantendo o dia (dia 31 em mês curto vira o último dia).
+  function addMonthsIso(iso, n) {
+    const p = iso.split('-').map(Number);
+    const alvo = new Date(p[0], p[1] - 1 + n, 1);
+    const ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+    const dia = Math.min(p[2], ultimoDia);
+    return alvo.getFullYear() + '-' + String(alvo.getMonth() + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+  }
+
+  /* ── Contas do mês ──
+     Detecta despesas/receitas que se repetem todo mês (mesma descrição+valor, no máximo
+     uma por mês, em 3+ dos últimos 4 meses — ou marcadas como recorrentes) e que ainda
+     não existem no mês atual. Um clique lança; "Lançar todas" resolve o mês inteiro. */
+  function detectarContasDoMes() {
+    const hoje = new Date();
+    const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    const ultimos4 = [];
+    for (let i = 1; i <= 4; i++) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      ultimos4.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+    }
+
+    const grupos = {};
+    StorageService.getLancamentos().forEach((l) => {
+      if (!l.descricao || !l.data) return;
+      const key = [l.tipo, l.descricao, Number(l.valor).toFixed(2), l.categoriaId || ''].join('|');
+      (grupos[key] = grupos[key] || []).push(l);
+    });
+
+    const candidatos = [];
+    Object.values(grupos).forEach((lista) => {
+      const mesesDistintos = {};
+      let temNoMesAtual = false;
+      let recorrenteExplicito = false;
+      lista.forEach((l) => {
+        const m = l.data.slice(0, 7);
+        mesesDistintos[m] = (mesesDistintos[m] || 0) + 1;
+        if (m === mesAtual) temNoMesAtual = true;
+        if (l.recurring) recorrenteExplicito = true;
+      });
+      if (temNoMesAtual) return;
+      const nosUltimos4 = ultimos4.filter((m) => mesesDistintos[m]).length;
+      const umaPorMes = Object.values(mesesDistintos).every((c) => c === 1);
+      // Fixas de verdade: uma por mês. Café de R$ 2,50 cinco vezes por semana não entra.
+      if (!recorrenteExplicito && !(nosUltimos4 >= 3 && umaPorMes)) return;
+      // Precisa ter ocorrido recentemente (não sugerir conta encerrada há meses)
+      const maisRecente = lista.slice().sort((a, b) => b.data.localeCompare(a.data))[0];
+      if (ultimos4.indexOf(maisRecente.data.slice(0, 7)) === -1 && !recorrenteExplicito) return;
+
+      const dias = lista.map((l) => parseInt(l.data.slice(8, 10), 10)).sort((a, b) => a - b);
+      const diaTipico = dias[Math.floor(dias.length / 2)];
+      candidatos.push({ modelo: maisRecente, diaTipico });
+    });
+    return candidatos.sort((a, b) => a.diaTipico - b.diaTipico);
+  }
+
+  function lancarConta(cand) {
+    const hoje = new Date();
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+    const dia = Math.min(cand.diaTipico, ultimoDia);
+    const m = cand.modelo;
+    return StorageService.addLancamento({
+      data: hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0'),
+      tipo: m.tipo,
+      responsavelId: m.responsavelId || null,
+      categoriaId: m.categoriaId || null,
+      subcategoriaId: m.subcategoriaId || null,
+      descricao: m.descricao,
+      valor: Number(m.valor),
+      obs: m.obs || m.observacao || '',
+      statusId: m.statusId || null,
+      recurring: true, // lançou pelo painel = é fixa; próximo mês nem precisa detectar
+      fixoVariavel: 'fixo',
+      pagamentoId: m.pagamentoId || null,
+    });
+  }
+
+  function renderContasDoMes() {
+    const box = document.getElementById('contasMesPanel');
+    if (!box) return;
+    const cands = detectarContasDoMes();
+    if (!cands.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    const total = cands.reduce((s, c) => s + Number(c.modelo.valor), 0);
+    box.innerHTML =
+      '<div class="cm-header"><strong>🔁 Contas do mês ainda não lançadas</strong>' +
+      '<span class="cm-total">' + cands.length + ' conta(s) · ' + Utils.formatCurrency(total) + '</span>' +
+      '<button class="btn btn-small btn-primary" id="btnLancarTodas">Lançar todas</button></div>' +
+      cands.map((c, i) =>
+        '<div class="cm-row">' +
+          '<span class="cm-dia">dia ' + c.diaTipico + '</span>' +
+          '<span class="cm-desc">' + c.modelo.descricao + (c.modelo.tipo === 'receita' ? ' <span style="color:#15803D">(ganho)</span>' : '') + '</span>' +
+          '<span class="cm-cat">' + UI.mapCategoryName(c.modelo.categoriaId) + '</span>' +
+          '<strong class="cm-val">' + Utils.formatCurrency(c.modelo.valor) + '</strong>' +
+          '<button class="btn btn-small" data-cm-idx="' + i + '">Lançar</button>' +
+        '</div>').join('');
+
+    box.querySelectorAll('[data-cm-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        lancarConta(cands[btn.dataset.cmIdx]).then(() => {
+          UI.showMessage('Conta lançada.');
+          renderContasDoMes();
+          updateTable();
+        });
+      });
+    });
+    const btnTodas = document.getElementById('btnLancarTodas');
+    if (btnTodas) btnTodas.addEventListener('click', () => {
+      btnTodas.disabled = true;
+      Promise.all(cands.map(lancarConta)).then(() => {
+        UI.showMessage(cands.length + ' contas lançadas.');
+        renderContasDoMes();
+        updateTable();
+      });
+    });
+  }
+
   function renderTable(lancamentos) {
     dom.tabelaCorpo.innerHTML = '';
     const responsaveis = StorageService.getResponsaveis();
@@ -344,6 +463,7 @@ const LancamentosPage = (function () {
   function resetForm() {
     state.editingId = null;
     dom.form.reset();
+    dom.parcelas.value = '';
     dom.subcategoriaNova.value = '';
     dom.subcategoriaNova.disabled = true;
     dom.data.value = new Date().toISOString().substr(0, 10);
@@ -380,11 +500,34 @@ const LancamentosPage = (function () {
       ev.preventDefault();
       getFormDataAsync().then((data) => {
         const editingId = state.editingId;
+        const nParcelas = editingId ? 1 : Math.max(1, parseInt(dom.parcelas.value, 10) || 1);
+
+        if (nParcelas > 1) {
+          // Compra parcelada: o Valor é o de CADA parcela; gera uma por mês a partir da
+          // data escolhida, numerada na observação — chega de controlar "5 de 27" na mão.
+          const obsBase = data.obs ? data.obs + ' · ' : '';
+          const ops = [];
+          for (let i = 0; i < nParcelas; i++) {
+            ops.push(StorageService.addLancamento(Object.assign({}, data, {
+              data: addMonthsIso(data.data, i),
+              obs: obsBase + 'Parcela ' + (i + 1) + '/' + nParcelas,
+            })));
+          }
+          return Promise.all(ops).then(() => {
+            const ultima = addMonthsIso(data.data, nParcelas - 1);
+            UI.showMessage(nParcelas + ' parcelas lançadas até ' + Utils.formatDate(ultima) + '.');
+            resetForm();
+            updateTable();
+            renderContasDoMes();
+          });
+        }
+
         const op = editingId ? StorageService.updateLancamento(editingId, data) : StorageService.addLancamento(data);
         return op.then(() => {
           UI.showMessage(editingId ? 'Lançamento atualizado com sucesso.' : 'Lançamento criado com sucesso.');
           resetForm();
           updateTable();
+          renderContasDoMes();
         });
       }).catch((err) => {
         UI.showMessage(err.message || 'Erro ao salvar lançamento');
@@ -478,6 +621,7 @@ const LancamentosPage = (function () {
       registerEvents();
       atualizarSugestoesDescricao();
       updateTable();
+      renderContasDoMes();
     } catch (error) {
       console.error('Erro inicializando página de lançamentos', error);
       UI.showMessage('Erro ao inicializar lançamentos');

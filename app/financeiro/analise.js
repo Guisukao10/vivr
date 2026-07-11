@@ -149,6 +149,19 @@ const AnalisePage = (function () {
       return;
     }
 
+    // "Quanto posso gastar por dia?" — o número que muda comportamento: orçamento
+    // restante dividido pelos dias que faltam no mês. Só faz sentido no mês corrente.
+    const diario = getGastoDiarioDisponivel(periodo);
+    if (diario) {
+      if (diario.disponivel >= 0) {
+        container.appendChild(buildCard('Pode gastar por dia',
+          Utils.formatCurrency(diario.porDia) + ` até ${diario.fimMes}`, 'success'));
+      } else {
+        container.appendChild(buildCard('Orçamento do mês estourado',
+          Utils.formatCurrency(Math.abs(diario.disponivel)) + ' acima do planejado', 'danger'));
+      }
+    }
+
     container.appendChild(buildCard('Média diária de gastos', Utils.formatCurrency(totais.mediaDiariaGastos), 'warning'));
     container.appendChild(buildCard('Onde mais gastou', totais.maiorCategoria, 'info'));
 
@@ -159,6 +172,59 @@ const AnalisePage = (function () {
       const txt = `${seta} ${Math.abs(cmp.deltaPct).toFixed(0)}% (${Utils.formatCurrency(cmp.anterior)} → ${Utils.formatCurrency(cmp.atual)})`;
       container.appendChild(buildCard('Gastos vs mês anterior', txt, cmp.delta > 0 ? 'danger' : 'success'));
     }
+  }
+
+  /* Orçamento restante ÷ dias restantes do mês corrente. null quando não é o mês
+     atual ou não há orçamento no planejador. */
+  function getGastoDiarioDisponivel(periodo) {
+    const atual = getCurrentMonthYear();
+    if (periodo !== atual.comp) return null;
+    const mesKey = `${atual.ano}-${String(atual.mes).padStart(2, '0')}`;
+    const plano = (StorageService.getBudgetPlan() || [])
+      .filter((r) => r.month === mesKey)
+      .reduce((s, r) => s + Number(r.value || 0), 0);
+    if (!plano) return null;
+    const gastoMes = getLancamentos()
+      .filter((l) => l.tipo === 'despesa' && Utils.calculateCompetencia(l.data) === periodo)
+      .reduce((s, l) => s + Number(l.valor || 0), 0);
+    const hoje = new Date();
+    const diasNoMes = new Date(atual.ano, atual.mes, 0).getDate();
+    const diasRestantes = Math.max(1, diasNoMes - hoje.getDate() + 1);
+    const disponivel = plano - gastoMes;
+    return { disponivel, porDia: Math.max(0, disponivel) / diasRestantes, fimMes: `${diasNoMes}/${String(atual.mes).padStart(2, '0')}` };
+  }
+
+  /* Alertas de orçamento: categorias em 80%+ do planejado no mês corrente aparecem
+     no topo da Análise — o aviso vai até a pessoa, não espera ela abrir o Planejador. */
+  function renderBudgetAlerts(periodo) {
+    const el = document.getElementById('budgetAlerts');
+    if (!el) return;
+    const atual = getCurrentMonthYear();
+    if (periodo !== atual.comp) { el.style.display = 'none'; return; }
+    const mesKey = `${atual.ano}-${String(atual.mes).padStart(2, '0')}`;
+    const planos = (StorageService.getBudgetPlan() || []).filter((r) => r.month === mesKey && Number(r.value) > 0);
+    if (!planos.length) { el.style.display = 'none'; return; }
+
+    const gastoPorCat = {};
+    getLancamentos().forEach((l) => {
+      if (l.tipo !== 'despesa' || Utils.calculateCompetencia(l.data) !== periodo) return;
+      const nome = UI.mapCategoryName(l.categoriaId);
+      gastoPorCat[nome] = (gastoPorCat[nome] || 0) + Number(l.valor || 0);
+    });
+
+    const alertas = planos.map((p) => {
+      const gasto = gastoPorCat[p.cat] || 0;
+      const pct = gasto / Number(p.value) * 100;
+      return { cat: p.cat, gasto, plano: Number(p.value), pct, resta: Number(p.value) - gasto };
+    }).filter((a) => a.pct >= 80).sort((a, b) => b.pct - a.pct);
+
+    if (!alertas.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = alertas.map((a) => {
+      const estourou = a.pct >= 100;
+      return `<span class="ba-chip ${estourou ? 'over' : 'warn'}">${estourou ? '🔴' : '⚠️'} <strong>${a.cat}</strong> ${Math.round(a.pct)}%` +
+        (estourou ? ` · estourou ${Utils.formatCurrency(Math.abs(a.resta))}` : ` · restam ${Utils.formatCurrency(a.resta)}`) + '</span>';
+    }).join('') + '<a href="planejador.html" class="ba-link">ver planejador →</a>';
   }
 
   // Gastos do período atual vs o mês imediatamente anterior (histórico completo).
@@ -364,6 +430,7 @@ const AnalisePage = (function () {
     } else {
       renderHero(totais, selectedPeriod);
     }
+    renderBudgetAlerts(selectedPeriod);
     renderCards(totais, selectedPeriod, allLancamentos.length, filtered.length);
     renderCharts(selectedPeriod);
     renderGastosPorResponsavel(selectedPeriod);

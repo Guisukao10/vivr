@@ -1,5 +1,5 @@
 /* ── Vivr — Service Worker ── */
-var CACHE = 'vivr-v1';
+var CACHE = 'vivr-v2';
 
 var SHELL = [
   '/vivr/',
@@ -95,15 +95,18 @@ self.addEventListener('fetch', function(e) {
     return;
   }
 
-  // App shell: stale-while-revalidate
+  // App shell: rede primeiro, cache só quando offline.
+  // (Stale-while-revalidate deixava o usuário eternamente uma versão atrás:
+  // servia o cache velho e só atualizava por trás — a atualização aparecia
+  // apenas no SEGUNDO acesso. Aqui a versão nova chega na hora e o cache
+  // vira rede de segurança pra quando não houver internet.)
   e.respondWith(
     caches.open(CACHE).then(function(cache) {
-      return cache.match(e.request).then(function(cached) {
-        var net = fetch(e.request).then(function(res) {
-          if (res.ok) cache.put(e.request, res.clone());
-          return res;
-        }).catch(function() { return cached; });
-        return cached || net;
+      return fetch(e.request).then(function(res) {
+        if (res.ok) cache.put(e.request, res.clone());
+        return res;
+      }).catch(function() {
+        return cache.match(e.request);
       });
     })
   );
