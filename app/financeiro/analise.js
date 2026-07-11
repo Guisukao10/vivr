@@ -334,6 +334,62 @@ const AnalisePage = (function () {
         <div class="fin-list-bar"><div class="fin-list-bar-fill" style="width:${max ? (resp.data[i] / max * 100) : 0}%"></div></div>
         <strong>${Utils.formatCurrency(resp.data[i])}</strong>
       </div>`).join('');
+
+    // Acerto do casal: com exatamente 2 responsáveis, fecha a conta que antes era
+    // feita de cabeça — divisão meio a meio, quem pagou menos repassa a diferença.
+    if (resp.labels.length === 2) {
+      const [nomeA, nomeB] = resp.labels;
+      const [gastoA, gastoB] = resp.data;
+      const diferenca = Math.abs(gastoA - gastoB) / 2;
+      if (diferenca >= 1) {
+        const pagouMais = gastoA > gastoB ? nomeA : nomeB;
+        const pagouMenos = gastoA > gastoB ? nomeB : nomeA;
+        container.innerHTML += `<div class="acerto-box">⚖️ Dividindo meio a meio: <strong>${pagouMenos}</strong> repassa ` +
+          `<strong>${Utils.formatCurrency(diferenca)}</strong> para <strong>${pagouMais}</strong> e o período fica equilibrado.</div>`;
+      } else {
+        container.innerHTML += '<div class="acerto-box ok">⚖️ Contas equilibradas neste período — ninguém deve nada.</div>';
+      }
+    }
+  }
+
+  /* Compromissos futuros já lançados (parcelas, contas agendadas): o dinheiro que
+     VAI sair nos próximos 30 dias, pra ninguém ser pego de surpresa. Independe do
+     filtro de período — o futuro é sempre a partir de hoje. */
+  function renderProximosCompromissos() {
+    const el = document.getElementById('proxCompromissos');
+    if (!el) return;
+    const hoje = new Date();
+    const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const hojeIso = iso(hoje);
+    const limiteIso = iso(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 30));
+
+    const futuros = getLancamentos().filter((l) => l.data > hojeIso && l.data <= limiteIso);
+    const saidas = futuros.filter((l) => l.tipo === 'despesa').sort((a, b) => a.data.localeCompare(b.data));
+    const entradas = futuros.filter((l) => l.tipo === 'receita');
+
+    if (!saidas.length && !entradas.length) {
+      el.innerHTML = '<div style="color:#bbb;font-size:.78rem;padding:6px 0">Nada agendado para os próximos 30 dias.</div>';
+      return;
+    }
+
+    const totalSaidas = saidas.reduce((s, l) => s + Number(l.valor || 0), 0);
+    const totalEntradas = entradas.reduce((s, l) => s + Number(l.valor || 0), 0);
+    const visiveis = saidas.slice(0, 8);
+
+    let html = `<div class="pc-total">${Utils.formatCurrency(totalSaidas)} já comprometidos nos próximos 30 dias</div>`;
+    html += visiveis.map((l) => `
+      <div class="pc-row">
+        <span class="pc-dia">${l.data.slice(8, 10)}/${l.data.slice(5, 7)}</span>
+        <span class="pc-desc">${l.descricao}${(l.obs || l.observacao) ? ' <span class="pc-obs">· ' + (l.obs || l.observacao) + '</span>' : ''}</span>
+        <strong class="pc-val">${Utils.formatCurrency(l.valor)}</strong>
+      </div>`).join('');
+    if (saidas.length > visiveis.length) {
+      html += `<div class="pc-mais">+ ${saidas.length - visiveis.length} outros compromissos no período</div>`;
+    }
+    if (totalEntradas > 0) {
+      html += `<div class="pc-entradas">Entradas previstas no período: <strong>${Utils.formatCurrency(totalEntradas)}</strong></div>`;
+    }
+    el.innerHTML = html;
   }
 
   // Metas com categoria vinculada (qualquer área) — progresso já veio calculado
@@ -434,6 +490,7 @@ const AnalisePage = (function () {
     renderCards(totais, selectedPeriod, allLancamentos.length, filtered.length);
     renderCharts(selectedPeriod);
     renderGastosPorResponsavel(selectedPeriod);
+    renderProximosCompromissos();
     renderRecentAndTop(selectedPeriod);
     renderResumoCategoria(totais);
     renderMetasFinanceiras();

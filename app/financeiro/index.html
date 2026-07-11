@@ -19,6 +19,17 @@
 .fin-goal-pct{flex:0 0 40px;text-align:right;font-size:.78rem;font-weight:700;color:var(--color-primary)}
 .fin-goal-area{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#EFF6FF;color:#1D4ED8;border-radius:8px;padding:1px 6px;margin-left:4px;vertical-align:middle}
 .fin-goal-money{flex:0 0 auto;font-size:.72rem;color:var(--color-text-secondary);white-space:nowrap}
+.acerto-box{margin-top:10px;padding:9px 12px;border-radius:9px;font-size:.76rem;background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
+.acerto-box.ok{background:#F0FDF4;border-color:#BBF7D0;color:#14532D}
+.pc-total{font-size:.78rem;font-weight:700;color:#B91C1C;margin-bottom:8px}
+.pc-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:.76rem}
+.pc-row:last-of-type{border-bottom:none}
+.pc-dia{flex:0 0 42px;font-size:.68rem;font-weight:700;color:#888}
+.pc-desc{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-obs{color:#aaa;font-size:.68rem}
+.pc-val{flex:0 0 auto;font-variant-numeric:tabular-nums}
+.pc-mais{font-size:.68rem;color:#aaa;padding-top:6px}
+.pc-entradas{margin-top:8px;padding-top:8px;border-top:1px dashed #eee;font-size:.74rem;color:#15803D}
 #budgetAlerts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:1rem}
 .ba-chip{font-size:.75rem;padding:6px 12px;border-radius:16px;font-weight:500}
 .ba-chip.warn{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
@@ -111,6 +122,7 @@
   </div>
 
   <div class="fin-compact-grid">
+    <div class="panel"><h3>📅 Próximos compromissos</h3><div id="proxCompromissos"></div></div>
     <div class="panel"><h3>Lançamentos recentes</h3><div id="ultimosLancamentos"></div></div>
   </div>
 </div>
