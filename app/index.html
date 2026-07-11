@@ -155,11 +155,21 @@ db.from('habits').select('id').then(function(habitsRows){
   });
 }).catch(function(){ setStat('stat-hab','Sem dados ainda'); });
 
-db.from('workouts').order('date',{ascending:false}).select('date').then(function(rows){
-  if (!rows || !rows.length) { setStat('stat-sau','Nenhum treino registrado'); return; }
-  var ultima = rows[0].date;
-  var dias = Math.floor((new Date(todayKey()) - new Date(ultima)) / 86400000);
-  setStat('stat-sau', dias===0 ? 'Treino feito hoje' : dias===1 ? 'Último treino: ontem' : 'Último treino: há '+dias+' dias', dias<=1?'ok':undefined);
+// Lembrete honesto: se HOJE ainda não tem nenhum registro de saúde, o card avisa
+// (com o registro rápido, resolver leva dois toques). Se já tem, mostra o resumo.
+Promise.all([
+  db.from('workouts').order('date',{ascending:false}).select('date'),
+  db.from('sleep_logs').eq('date',todayKey()).select('id'),
+  db.from('mood_logs').eq('date',todayKey()).select('id')
+]).then(function(res){
+  var workouts = res[0]||[];
+  var treinoHoje = workouts.length && workouts[0].date===todayKey();
+  var temRegistroHoje = treinoHoje || (res[1]||[]).length || (res[2]||[]).length;
+  if (!temRegistroHoje) { setStat('stat-sau','⚡ Dia ainda sem registro — leva 2 toques','warn'); return; }
+  if (treinoHoje) { setStat('stat-sau','Treino feito hoje','ok'); return; }
+  if (!workouts.length) { setStat('stat-sau','Dia registrado · nenhum treino ainda'); return; }
+  var dias = Math.floor((new Date(todayKey()) - new Date(workouts[0].date)) / 86400000);
+  setStat('stat-sau', dias===1 ? 'Último treino: ontem' : 'Último treino: há '+dias+' dias', dias<=1?'ok':undefined);
 }).catch(function(){ setStat('stat-sau','Sem dados ainda'); });
 
 if('serviceWorker' in navigator){

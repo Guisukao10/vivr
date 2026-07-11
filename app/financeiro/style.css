@@ -294,6 +294,31 @@ body{font-family:'Inter',sans-serif;background:#F2F3F5;color:#1a1a1a;min-height:
 /* tabela de lançamentos: linha clicável */
 #tabelaLancamentos tbody tr{transition:background .12s}
 #tabelaLancamentos tbody tr:hover{background:#f8faff}
+
+/* ── Roadmap da Vida ── */
+.rm-premissas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.rm-field label{display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#bbb;margin-bottom:4px}
+.rm-field input{width:100%;padding:8px 10px;border:1.5px solid #E5E7EB;border-radius:8px;font-family:inherit;font-size:.85rem;font-weight:600;outline:none}
+.rm-field input:focus{border-color:#1a1a1a}
+.rm-add{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rm-add select,.rm-add input{padding:8px 10px;border:1.5px solid #E5E7EB;border-radius:8px;font-family:inherit;font-size:.8rem;outline:none}
+.rm-add input[type=text]{flex:2;min-width:180px}
+.rm-add input[type=number]{width:110px}
+.rm-empty{text-align:center;padding:32px;color:#aaa;font-size:.85rem;background:#fafafa;border:2px dashed #e5e7eb;border-radius:12px}
+.rm-timeline{display:flex;flex-direction:column;gap:0;border-left:3px solid #e5e7eb;margin-left:8px;padding-left:18px}
+.rm-ano{position:relative;padding:10px 0 14px}
+.rm-ano::before{content:'';position:absolute;left:-25px;top:16px;width:11px;height:11px;border-radius:50%;background:#d1d5db;border:2px solid #fff}
+.rm-ano.has-items::before{background:#1D4ED8}
+.rm-ano-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.rm-ano-num{font-size:1rem;font-weight:800;color:#1a1a1a}
+.rm-ano-pat{font-size:.74rem;color:#555}
+.rm-ano-renda{font-size:.68rem;color:#aaa}
+.rm-item{position:relative;margin-top:8px;padding:9px 34px 9px 12px;border-radius:9px;font-size:.78rem;line-height:1.4}
+.rm-item.ok{background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D}
+.rm-item.falta{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D}
+.rm-item.renda{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A}
+.rm-del{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;color:#bbb;font-size:1rem;cursor:pointer;line-height:1;padding:2px 4px}
+.rm-del:hover{color:#B91C1C}
 .ptbl .bucket-sep td{background:#f3f3f3;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#bbb;padding:4px 8px;border-top:2px solid #eaeaea}
 .sim-progress{margin-top:14px}
 .sp-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}

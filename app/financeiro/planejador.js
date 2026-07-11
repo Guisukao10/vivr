@@ -672,6 +672,174 @@ function renderInvestTab(){
   refresh();
 }
 
+/* ─── Roadmap da Vida ───
+   O ambiente de decisão de futuro: bens a conquistar e mudanças de renda,
+   projetados ano a ano sobre o patrimônio. Cada bem ganha um veredito honesto
+   ("dá pra comprar" / "faltam R$ X — cabe em YYYY") calculado, não chutado. */
+var rmItems = [];
+
+function rmLoad(){
+  return db.from('life_plan_items').order('ano').select('*').then(function(rows){
+    rmItems = rows||[];
+  });
+}
+
+function rmMediaMensal(lista){
+  var meses = uniq(lista.map(function(r){ return monthKey(r.date); }));
+  return meses.length ? total(lista)/meses.length : 0;
+}
+
+function rmDefaults(){
+  // Renda: valor editado no planejador (budget_income) se houver, senão média histórica.
+  var override = StorageService.getBudgetIncome();
+  var renda = override!==null ? override : rmMediaMensal(allGanhos);
+  var gasto = rmMediaMensal(allGastos);
+  var rendaEl = document.getElementById('rmRenda');
+  var gastoEl = document.getElementById('rmGasto');
+  if(rendaEl && !rendaEl.value) rendaEl.value = Math.round(renda);
+  if(gastoEl && !gastoEl.value) gastoEl.value = Math.round(gasto);
+  var anoEl = document.getElementById('rmAno');
+  if(anoEl && !anoEl.value) anoEl.value = new Date().getFullYear()+1;
+}
+
+/* Projeta o patrimônio mês a mês e devolve, por ano: renda vigente, sobra mensal,
+   patrimônio no fim do ano e o resultado de cada item daquele ano. */
+function rmProjetar(){
+  var pat   = parseFloat(document.getElementById('rmPatrimonio').value)||0;
+  var renda = parseFloat(document.getElementById('rmRenda').value)||0;
+  var gasto = parseFloat(document.getElementById('rmGasto').value)||0;
+  var taxa  = (parseFloat(document.getElementById('rmTaxa').value)||0)/100;
+
+  var anoAtual = new Date().getFullYear();
+  var ultimoAno = anoAtual+5;
+  rmItems.forEach(function(it){ if(it.ano+1 > ultimoAno) ultimoAno = it.ano+1; });
+
+  var porAno = {};
+  rmItems.forEach(function(it){
+    if(!porAno[it.ano]) porAno[it.ano] = [];
+    porAno[it.ano].push(it);
+  });
+
+  var anos = [];
+  for(var ano=anoAtual; ano<=ultimoAno; ano++){
+    // rendas novas entram em janeiro do ano-alvo
+    (porAno[ano]||[]).forEach(function(it){
+      if(it.tipo==='renda') renda = Number(it.valor);
+    });
+    var sobraMensal = renda-gasto;
+    var mesInicial = ano===anoAtual ? new Date().getMonth() : 0;
+    for(var m=mesInicial; m<12; m++){
+      pat = pat*(1+taxa) + sobraMensal;
+    }
+    // compras saem no fim do ano-alvo (depois de juntar o ano inteiro)
+    var compras = (porAno[ano]||[]).filter(function(it){ return it.tipo==='bem'; });
+    var itensAno = (porAno[ano]||[]).map(function(it){
+      if(it.tipo==='renda') return { item:it, ok:true, saldoApos:null };
+      var ok = pat >= Number(it.valor);
+      var saldoApos = pat - Number(it.valor);
+      if(ok) pat = saldoApos; // compra efetivada na projeção
+      return { item:it, ok:ok, faltam: ok?0:Number(it.valor)-pat, saldoApos: ok?saldoApos:null };
+    });
+    anos.push({ ano:ano, renda:renda, sobraMensal:sobraMensal, patFimAno:pat, itens:itensAno });
+  }
+  return anos;
+}
+
+/* Pra um bem que não coube, acha o primeiro ano em que caberia (mantendo o resto igual). */
+function rmAnoQueCabe(itemId){
+  var original = rmItems.find(function(i){ return i.id===itemId; });
+  if(!original) return null;
+  for(var tentativa=original.ano+1; tentativa<=original.ano+30; tentativa++){
+    original.ano = tentativa; // muta temporariamente só pra simular
+    var anos = rmProjetar();
+    var achou = null;
+    anos.forEach(function(a){ a.itens.forEach(function(r){ if(r.item.id===itemId && r.ok) achou = a.ano; }); });
+    if(achou){ original.ano = original._anoReal; return achou; }
+  }
+  original.ano = original._anoReal;
+  return null;
+}
+
+function rmRender(){
+  var el = document.getElementById('rmTimeline');
+  if(!el) return;
+  if(!rmItems.length){
+    el.innerHTML = '<div class="rm-empty">🗺️ Seu roadmap está vazio. Adicione o primeiro sonho ali em cima — '+
+      'um carro, uma casa, uma viagem — e veja em que ano ele cabe no seu bolso.</div>';
+    return;
+  }
+  rmItems.forEach(function(i){ i._anoReal = i.ano; });
+  var anos = rmProjetar();
+
+  var html = '<div class="rm-timeline">';
+  anos.forEach(function(a){
+    var temItens = a.itens.length>0;
+    html += '<div class="rm-ano'+(temItens?' has-items':'')+'">'+
+      '<div class="rm-ano-head">'+
+        '<span class="rm-ano-num">'+a.ano+'</span>'+
+        '<span class="rm-ano-pat">patrimônio projetado <strong>'+brl(a.patFimAno)+'</strong></span>'+
+        '<span class="rm-ano-renda">renda '+brl(a.renda)+'/mês · sobra '+brl(a.sobraMensal)+'/mês</span>'+
+      '</div>';
+    a.itens.forEach(function(r){
+      var it = r.item;
+      if(it.tipo==='renda'){
+        html += '<div class="rm-item renda">📈 <strong>'+it.titulo+'</strong> — renda passa a '+brl(Number(it.valor))+'/mês'+
+          '<button class="rm-del" data-rm-del="'+it.id+'" title="Remover">×</button></div>';
+      } else if(r.ok){
+        html += '<div class="rm-item ok">✅ <strong>'+it.titulo+'</strong> — '+brl(Number(it.valor))+
+          ' · dá pra comprar (sobram '+brl(r.saldoApos)+')'+
+          '<button class="rm-del" data-rm-del="'+it.id+'" title="Remover">×</button></div>';
+      } else {
+        var cabeEm = rmAnoQueCabe(it.id);
+        html += '<div class="rm-item falta">⚠️ <strong>'+it.titulo+'</strong> — '+brl(Number(it.valor))+
+          ' · faltam '+brl(r.faltam)+(cabeEm?' — caberia em <strong>'+cabeEm+'</strong>':'')+
+          '<button class="rm-del" data-rm-del="'+it.id+'" title="Remover">×</button></div>';
+      }
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+
+  el.querySelectorAll('[data-rm-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      db.from('life_plan_items').eq('id', btn.dataset.rmDel).delete().then(function(){
+        rmItems = rmItems.filter(function(i){ return i.id!==btn.dataset.rmDel; });
+        rmRender();
+        showToast('✓ Item removido do roadmap');
+      });
+    });
+  });
+}
+
+function rmAdd(){
+  var tipo = document.getElementById('rmTipo').value;
+  var titulo = (document.getElementById('rmTitulo').value||'').trim();
+  var valor = parseFloat(document.getElementById('rmValor').value);
+  var ano = parseInt(document.getElementById('rmAno').value,10);
+  if(!titulo){ showToast('Dê um nome ao item (ex: Carro novo)'); return; }
+  if(!valor || valor<=0){ showToast('Informe o valor'); return; }
+  if(!ano || ano<new Date().getFullYear()){ showToast('Informe um ano a partir de '+new Date().getFullYear()); return; }
+  db.from('life_plan_items').insert({tipo:tipo, titulo:titulo, valor:valor, ano:ano}).then(function(rows){
+    rmItems.push((rows||[])[0]);
+    rmItems.sort(function(a,b){ return a.ano-b.ano; });
+    document.getElementById('rmTitulo').value='';
+    document.getElementById('rmValor').value='';
+    rmRender();
+    showToast('✓ "'+titulo+'" no roadmap');
+  }).catch(function(e){ showToast('⚠️ Erro: '+e.message); });
+}
+
+var rmInited = false;
+function renderRoadmapTab(){
+  var boot = rmInited ? Promise.resolve() : rmLoad();
+  rmInited = true;
+  boot.then(function(){
+    rmDefaults();
+    rmRender();
+  });
+}
+
 /* ─── Tabs da página ── */
 var currentTab = 'planejador';
 function setTab(t){
@@ -679,7 +847,9 @@ function setTab(t){
   document.querySelectorAll('.tabs .tab').forEach(function(b){ b.classList.toggle('on', b.dataset.t===t); });
   document.getElementById('panelPlanejador').style.display = t==='planejador' ? '' : 'none';
   document.getElementById('panelInvest').style.display = t==='invest' ? '' : 'none';
+  document.getElementById('panelRoadmap').style.display = t==='roadmap' ? '' : 'none';
   if(t==='invest') renderInvestTab();
+  if(t==='roadmap') renderRoadmapTab();
 }
 
 /* ─── Init ─── */
@@ -697,6 +867,11 @@ StorageService.initFinanceiro().then(function(){
   document.getElementById('btnFillAvg').addEventListener('click', simFillAverages);
   document.getElementById('btnFillLast').addEventListener('click', simFillLastMonth);
   document.getElementById('btnClearSim').addEventListener('click', simClearAll);
+  document.getElementById('rmBtnAdd').addEventListener('click', rmAdd);
+  ['rmPatrimonio','rmRenda','rmGasto','rmTaxa'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', function(){ if(rmInited) rmRender(); });
+  });
+  document.getElementById('rmTitulo').addEventListener('keydown', function(e){ if(e.key==='Enter') rmAdd(); });
 }).catch(function(e){ setLoading('⚠️ Erro ao carregar: '+e.message); });
 
 }());

@@ -260,13 +260,17 @@ function openModal(id) {
       '</div>'+
       '<div class="mf-field"><label>Meta quantitativa</label><input id="mf-target" type="text" placeholder="Ex: R$ 50.000, 10kg, 90 Dias" value="'+esc(g?g.target:'')+'"/></div>'+
       '<div class="mf-field" id="autoTrackField" style="display:none">'+
-        '<label><input type="checkbox" id="mf-autotrack" onchange="toggleAutoTrackCount()" '+(g&&g.auto_track==='workouts_days'?'checked':'')+' style="width:auto;margin-right:6px"/>'+
-        '🔗 Contar treinos registrados automaticamente</label>'+
-        '<div id="autoTrackCountWrap" style="margin-top:6px'+(g&&g.auto_track==='workouts_days'?'':';display:none')+'">'+
+        '<label>🔗 Acompanhamento automático</label>'+
+        '<select id="mf-autotrack" onchange="toggleAutoTrackCount()">'+
+          '<option value=""'+(!(g&&g.auto_track)?' selected':'')+'>— Nenhum (progresso manual) —</option>'+
+          '<option value="workouts_days"'+(g&&g.auto_track==='workouts_days'?' selected':'')+'>💪 Contar dias com treino registrado</option>'+
+          '<option value="sleep_days"'+(g&&g.auto_track==='sleep_days'?' selected':'')+'>😴 Contar noites de sono registradas</option>'+
+        '</select>'+
+        '<div id="autoTrackCountWrap" style="margin-top:6px'+(g&&g.auto_track?'':';display:none')+'">'+
           '<label style="font-weight:400;text-transform:none;font-size:.72rem;color:#888">Quantos dias no total? (ex: 90)</label>'+
           '<input id="mf-target-count" type="number" min="1" value="'+(g&&g.target_count?g.target_count:'')+'" placeholder="90"/>'+
         '</div>'+
-        '<div style="font-size:.68rem;color:#aaa;margin-top:4px">Toda vez que um treino for registrado no módulo Saúde, essa meta avança sozinha — sem precisar marcar nada manualmente.</div>'+
+        '<div style="font-size:.68rem;color:#aaa;margin-top:4px">Cada registro no módulo Saúde faz essa meta avançar sozinha — sem marcar nada manualmente.</div>'+
       '</div>'+
       parentSelect+
       '<div class="mf-field"><label>Progresso: <span id="mf-pct-val" style="color:#1D4ED8;font-weight:700">'+(g?g.progress:0)+'%</span></label>'+
@@ -292,7 +296,7 @@ function toggleAutoTrackField(){
   if (field) field.style.display = area === 'sau' ? '' : 'none';
 }
 function toggleAutoTrackCount(){
-  var on = document.getElementById('mf-autotrack').checked;
+  var on = !!document.getElementById('mf-autotrack').value;
   document.getElementById('autoTrackCountWrap').style.display = on ? '' : 'none';
 }
 
@@ -321,7 +325,8 @@ function saveGoal() {
   var title=(document.getElementById('mf-title').value||'').trim();
   if(!title){alert('Digite um título.');return;}
   var pe=document.getElementById('mf-parent');
-  var autoTrackChecked = document.getElementById('mf-autotrack') && document.getElementById('mf-autotrack').checked;
+  var autoTrackSel = document.getElementById('mf-autotrack');
+  var autoTrackVal = autoTrackSel ? (autoTrackSel.value || null) : null;
   var data={
     hz:currentHz, title:title,
     description:(document.getElementById('mf-desc').value||'').trim(),
@@ -331,8 +336,8 @@ function saveGoal() {
     progress:parseInt(document.getElementById('mf-progress').value)||0,
     notes:document.getElementById('mf-notes')?(document.getElementById('mf-notes').value||'').trim():'',
     parent_id:pe?(pe.value||null):null,
-    auto_track: autoTrackChecked ? 'workouts_days' : null,
-    target_count: autoTrackChecked ? (parseInt(document.getElementById('mf-target-count').value)||null) : null
+    auto_track: autoTrackVal,
+    target_count: autoTrackVal ? (parseInt(document.getElementById('mf-target-count').value)||null) : null
   };
 
   var op;

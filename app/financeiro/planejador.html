@@ -41,6 +41,7 @@
     <div class="tabs">
       <button class="tab on" data-t="planejador">📋 Planejador 50/20/30</button>
       <button class="tab" data-t="invest">💰 Simulador de Investimentos</button>
+      <button class="tab" data-t="roadmap">🗺️ Roadmap da Vida</button>
     </div>
 
     <!-- PLANEJADOR / ACOMPANHAMENTO -->
@@ -99,6 +100,37 @@
         <div style="overflow-x:auto"><table class="inv-yr" id="invYrTable"></table></div>
         <p class="inv-note" id="invNote"></p>
       </div>
+    </div>
+
+    <!-- ROADMAP DA VIDA -->
+    <div class="panel" id="panelRoadmap" style="display:none">
+      <p style="font-size:.78rem;color:#888;margin-bottom:14px">
+        Planeje o futuro de verdade: cadastre o que quer conquistar (carro, casa, viagem) e as mudanças
+        de renda que espera, e veja ano a ano se o dinheiro chega lá — antes de decidir.
+      </p>
+
+      <div class="rm-premissas">
+        <div class="rm-field"><label>Patrimônio hoje (R$)</label><input type="number" id="rmPatrimonio" min="0" step="500" value="0"/></div>
+        <div class="rm-field"><label>Renda mensal (R$)</label><input type="number" id="rmRenda" min="0" step="100"/></div>
+        <div class="rm-field"><label>Gasto mensal (R$)</label><input type="number" id="rmGasto" min="0" step="100"/></div>
+        <div class="rm-field"><label>Rendimento (% a.m.)</label><input type="number" id="rmTaxa" min="0" max="3" step="0.05" value="0.8"/></div>
+      </div>
+
+      <div class="box" style="margin-bottom:14px">
+        <div class="st">Adicionar ao roadmap</div>
+        <div class="rm-add">
+          <select id="rmTipo">
+            <option value="bem">🏆 Conquistar um bem (custo único)</option>
+            <option value="renda">📈 Nova renda mensal (a partir do ano)</option>
+          </select>
+          <input type="text" id="rmTitulo" placeholder="Ex: Carro novo, Casa própria, Promoção..."/>
+          <input type="number" id="rmValor" min="0" step="100" placeholder="Valor (R$)"/>
+          <input type="number" id="rmAno" min="2026" max="2080" step="1" placeholder="Ano"/>
+          <button class="sim-btn primary" id="rmBtnAdd">+ Adicionar</button>
+        </div>
+      </div>
+
+      <div id="rmTimeline"></div>
     </div>
   </div>
 </div>

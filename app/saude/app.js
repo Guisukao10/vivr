@@ -73,14 +73,23 @@ function loadDay(){
 // direto da contagem real de dias com treino registrado. Roda depois do render
 // inicial (não bloqueia a tela) e sempre re-renderiza no final: mesmo quando o
 // progresso salvo já estava certo, "X/90 dias" só existe depois desse cálculo.
+var AUTO_TRACK_SOURCES = { workouts_days:'workouts', sleep_days:'sleep_logs' };
 function syncAutoTrackGoals(){
-  var autoGoals = healthGoals.filter(function(g){ return g.auto_track==='workouts_days' && g.target_count>0; });
+  var autoGoals = healthGoals.filter(function(g){ return AUTO_TRACK_SOURCES[g.auto_track] && g.target_count>0; });
   if(!autoGoals.length) return;
-  return db.from('workouts').select('date').then(function(rows){
-    var diasDistintos = {};
-    (rows||[]).forEach(function(w){ diasDistintos[w.date]=true; });
-    var totalDias = Object.keys(diasDistintos).length;
+  // Uma query por fonte usada (treinos e/ou sono), não por meta.
+  var fontes = {};
+  autoGoals.forEach(function(g){ fontes[AUTO_TRACK_SOURCES[g.auto_track]]=true; });
+  var tabelas = Object.keys(fontes);
+  return Promise.all(tabelas.map(function(t){ return db.from(t).select('date'); })).then(function(resultados){
+    var diasPorTabela = {};
+    tabelas.forEach(function(t,i){
+      var dias = {};
+      (resultados[i]||[]).forEach(function(r){ dias[r.date]=true; });
+      diasPorTabela[t] = Object.keys(dias).length;
+    });
     var updates = autoGoals.map(function(g){
+      var totalDias = diasPorTabela[AUTO_TRACK_SOURCES[g.auto_track]] || 0;
       var novoProgress = Math.min(100, Math.round(totalDias/g.target_count*100));
       g.diasFeitos = totalDias; // pra exibição "X/90 dias"
       if(novoProgress===g.progress) return Promise.resolve();
@@ -170,7 +179,7 @@ function renderHoje(){
     html += '<div class="health-goals">'+
       '<div class="hg-title">❤️ Metas de Saúde</div>'+
       healthGoals.slice(0,5).map(function(g){
-        var isAuto = g.auto_track==='workouts_days';
+        var isAuto = !!AUTO_TRACK_SOURCES[g.auto_track];
         return '<div class="hg-row">'+
           '<span class="hg-name">'+esc(g.title)+(g.target?' <span style="font-size:.63rem;color:#aaa">'+esc(g.target)+'</span>':'')+'</span>'+
           '<div class="hg-bar-wrap"><div class="hg-bar-fill" style="width:'+(g.progress||0)+'%"></div></div>'+
@@ -347,6 +356,7 @@ function quickSaveSleep(hours){
   var data={id:uid(),date:currentDate,bedtime:null,wake_time:null,hours:hours,quality:3,notes:''};
   db.from('sleep_logs').insert(data).then(function(res){
     daySleep=Array.isArray(res)?res[0]:data; renderSection();
+    syncAutoTrackGoals();
   }).catch(function(e){showToast('⚠️ Erro: '+e.message);});
 }
 
@@ -732,7 +742,7 @@ function saveSleep(){
     quality:ratings.quality,notes:(document.getElementById('mf-notes').value||'').trim()};
   var op=daySleep?db.from('sleep_logs').eq('id',daySleep.id).update(data):db.from('sleep_logs').insert(data);
   document.querySelector('.btn-save').textContent='Salvando...';
-  op.then(function(res){ daySleep=Array.isArray(res)?res[0]:data; closeModal(); renderSection(); })
+  op.then(function(res){ daySleep=Array.isArray(res)?res[0]:data; closeModal(); renderSection(); syncAutoTrackGoals(); })
     .catch(function(e){showToast('⚠️ Erro: '+e.message);document.querySelector('.btn-save').textContent='Salvar';});
 }
 
