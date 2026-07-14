@@ -37,6 +37,21 @@
 
 /* Prévia do parcelamento (aparece quando Parcelas > 1) */
 .lc-parcelas-preview{margin:2px 0 12px;padding:9px 12px;border-radius:9px;font-size:.78rem;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+
+/* ── Modo edição: o formulário vira um modal sobre a tabela ──
+   Editar não te arranca mais pro topo da página: a linha continua onde estava
+   e o formulário vem até você. Esc ou clique fora cancela. */
+#lancamentoFormWrap.editing{position:fixed;inset:0;background:rgba(15,15,20,.5);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:4vh 16px;overflow-y:auto}
+#lancamentoFormWrap.editing .panel{max-width:960px;width:100%;margin:0;box-shadow:0 24px 60px rgba(0,0,0,.3);border:2px solid var(--color-primary);animation:lcPop .18s ease-out}
+@keyframes lcPop{from{transform:translateY(10px);opacity:.6}to{transform:translateY(0);opacity:1}}
+.lc-edit-hint{display:none;font-size:.72rem;color:var(--color-text-secondary);margin:-6px 0 12px}
+#lancamentoFormWrap.editing .lc-edit-hint{display:block}
+
+/* ── Ordenação: setas nos cabeçalhos clicáveis ── */
+#tabelaLancamentos th[data-sort]{cursor:pointer;user-select:none;white-space:nowrap}
+#tabelaLancamentos th[data-sort]:hover{color:var(--color-primary)}
+#tabelaLancamentos th.sorted-asc::after{content:' ▲';font-size:.6rem}
+#tabelaLancamentos th.sorted-desc::after{content:' ▼';font-size:.6rem}
 </style>
 </head>
 <body>
@@ -74,7 +89,8 @@
 
   <div id="lancamentoFormWrap">
     <form class="panel" id="lancamentoForm">
-      <h3>Novo lançamento</h3>
+      <h3 id="formTitulo">Novo lançamento</h3>
+      <p class="lc-edit-hint">Esc ou clique fora para cancelar a edição.</p>
 
       <div class="lc-tipo-toggle">
         <button type="button" class="lc-tipo-btn on" data-tipo="despesa" id="btnTipoDespesa">💸 Gastei</button>
@@ -128,6 +144,18 @@
       </div>
       <div><label>Responsável</label><select id="filtroResponsavel"></select></div>
       <div><label>Categoria</label><select id="filtroCategoria"></select></div>
+      <div><label>Ordenar por</label>
+        <select id="ordenarPor">
+          <option value="data|desc">Data · recentes primeiro</option>
+          <option value="data|asc">Data · antigas primeiro</option>
+          <option value="valor|desc">Valor · maior primeiro</option>
+          <option value="valor|asc">Valor · menor primeiro</option>
+          <option value="descricao|asc">Descrição · A→Z</option>
+          <option value="categoria|asc">Categoria · A→Z</option>
+          <option value="responsavel|asc">Responsável · A→Z</option>
+          <option value="pagamento|asc">Pagamento · A→Z</option>
+        </select>
+      </div>
     </div>
     <button type="button" class="lc-toggle-detalhes" id="btnToggleMaisFiltros">+ Mais filtros</button>
     <div class="form-group lc-detalhes" id="maisFiltros" style="display:none">
@@ -150,10 +178,10 @@
         <thead>
           <tr>
             <th data-sort="data">Data</th>
-            <th>Responsável</th>
-            <th>Categoria</th>
-            <th>Pagamento</th>
-            <th>Descrição</th>
+            <th data-sort="responsavel">Responsável</th>
+            <th data-sort="categoria">Categoria</th>
+            <th data-sort="pagamento">Pagamento</th>
+            <th data-sort="descricao">Descrição</th>
             <th data-sort="valor">Valor</th>
             <th>Observação</th>
             <th>Ação</th>

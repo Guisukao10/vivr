@@ -18,6 +18,9 @@ const LancamentosPage = (function () {
   function cacheDom(){
     dom = {
       form: document.getElementById('lancamentoForm'),
+      formWrap: document.getElementById('lancamentoFormWrap'),
+      formTitulo: document.getElementById('formTitulo'),
+      ordenarPor: document.getElementById('ordenarPor'),
       data: document.getElementById('data'),
       tipo: document.getElementById('tipo'),
       responsavel: document.getElementById('responsavel'),
@@ -392,7 +395,7 @@ const LancamentosPage = (function () {
     if (state.editingId || n <= 1 || !(v > 0)) {
       box.style.display = 'none';
       box.innerHTML = '';
-      if (btnSalvar) btnSalvar.textContent = 'Salvar lançamento';
+      if (btnSalvar) btnSalvar.textContent = state.editingId ? 'Salvar alterações' : 'Salvar lançamento';
       return;
     }
     const base = dom.data.value || Utils.hojeISO();
@@ -463,13 +466,42 @@ const LancamentosPage = (function () {
   }
 
   function ordenarLancamentos(lista) {
-    if (state.sortField === 'valor') {
-      return [...lista].sort((a, b) => {
-        const diff = (a.valor || 0) - (b.valor || 0);
-        return state.sortDir === 'asc' ? diff : -diff;
-      });
+    const dir = state.sortDir === 'asc' ? 1 : -1;
+    const campo = state.sortField;
+    if (campo === 'valor') {
+      return [...lista].sort((a, b) => ((a.valor || 0) - (b.valor || 0)) * dir);
     }
-    return Utils.sortByDate(lista, state.sortField, state.sortDir);
+    if (campo === 'data') {
+      return Utils.sortByDate(lista, 'data', state.sortDir);
+    }
+    // Colunas de texto: ordena pelo nome visível (não pelo id interno);
+    // empate mantém as mais recentes primeiro.
+    const responsaveis = StorageService.getResponsaveis();
+    const pagamentos = StorageService.getTiposPagamento();
+    const textoDe = (item) => {
+      if (campo === 'descricao') return (item.descricao || '').toLowerCase();
+      if (campo === 'categoria') return (UI.mapCategoryName(item.categoriaId) || '').toLowerCase();
+      if (campo === 'responsavel') return nomePorId(responsaveis, item.responsavelId).toLowerCase();
+      if (campo === 'pagamento') return nomePorId(pagamentos, item.pagamentoId).toLowerCase();
+      return '';
+    };
+    return [...lista].sort((a, b) =>
+      textoDe(a).localeCompare(textoDe(b)) * dir || (b.data || '').localeCompare(a.data || ''));
+  }
+
+  // Mantém seletor "Ordenar por" e setas dos cabeçalhos contando a mesma história,
+  // seja qual for o lugar onde a pessoa mudou a ordenação.
+  function refreshSortUI() {
+    dom.tblHead.forEach((th) => {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      if (th.dataset.sort === state.sortField) th.classList.add('sorted-' + state.sortDir);
+    });
+    if (dom.ordenarPor) {
+      const valor = state.sortField + '|' + state.sortDir;
+      const existe = [...dom.ordenarPor.options].some((o) => o.value === valor);
+      if (existe) dom.ordenarPor.value = valor;
+      else dom.ordenarPor.selectedIndex = -1; // combinação sem opção (ex: Categoria Z→A via cabeçalho)
+    }
   }
 
   function atualizarResumo(lista) {
@@ -523,10 +555,16 @@ const LancamentosPage = (function () {
     dom.fixoVariavel.value = item.fixoVariavel || 'variavel';
     dom.pagamento.value = item.pagamentoId || '';
     dom.parcelas.value = ''; // edição altera só este lançamento; parcelas não se aplicam
+    dom.parcelas.closest('div').style.display = 'none';
     atualizarPreviewParcelas();
     dom.btnCancelarEdicao.style.display = '';
     setDetalhesVisiveis(true); // editar já mostra tudo — evita esconder dado que a pessoa já tinha preenchido
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Formulário vira modal sobre a tabela — a página fica onde está, sem pulo pro topo.
+    dom.formTitulo.innerHTML = '✏️ Editando: ' + item.descricao +
+      ' <span style="font-weight:400;color:#888;font-size:.8rem">· ' + Utils.formatDate(item.data) + ' · ' + Utils.formatCurrency(item.valor) + '</span>';
+    dom.formWrap.classList.add('editing');
+    dom.formWrap.scrollTop = 0;
+    dom.descricao.focus();
   }
 
   function setDetalhesVisiveis(visivel) {
@@ -538,10 +576,13 @@ const LancamentosPage = (function () {
     state.editingId = null;
     dom.form.reset();
     dom.parcelas.value = '';
+    dom.parcelas.closest('div').style.display = '';
     dom.subcategoriaNova.value = '';
     dom.subcategoriaNova.disabled = true;
     dom.data.value = Utils.hojeISO();
     dom.btnCancelarEdicao.style.display = 'none';
+    dom.formTitulo.textContent = 'Novo lançamento';
+    dom.formWrap.classList.remove('editing');
     setTipo('despesa');
     setDetalhesVisiveis(false);
     atualizarPreviewParcelas();
@@ -629,6 +670,23 @@ const LancamentosPage = (function () {
 
     dom.btnCancelarEdicao.addEventListener('click', () => resetForm());
 
+    // Modal de edição: Esc ou clique no fundo escuro cancelam
+    dom.formWrap.addEventListener('click', (ev) => {
+      if (ev.target === dom.formWrap && state.editingId) resetForm();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && state.editingId) resetForm();
+    });
+
+    dom.ordenarPor.addEventListener('change', () => {
+      const partes = dom.ordenarPor.value.split('|');
+      if (partes.length !== 2) return;
+      state.sortField = partes[0];
+      state.sortDir = partes[1];
+      refreshSortUI();
+      updateTable();
+    });
+
     dom.btnVerTudo.addEventListener('click', () => {
       state.tabelaVisivel = true;
       updateTable();
@@ -691,7 +749,6 @@ const LancamentosPage = (function () {
     });
 
     dom.tblHead.forEach((th) => {
-      th.style.cursor = 'pointer';
       th.addEventListener('click', () => {
         const field = th.dataset.sort;
         if (!field) return;
@@ -699,8 +756,10 @@ const LancamentosPage = (function () {
           state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           state.sortField = field;
-          state.sortDir = 'asc';
+          // Data e valor fazem mais sentido do maior pro menor no primeiro clique
+          state.sortDir = (field === 'data' || field === 'valor') ? 'desc' : 'asc';
         }
+        refreshSortUI();
         updateTable();
       });
     });
