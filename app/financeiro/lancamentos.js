@@ -502,6 +502,22 @@ const LancamentosPage = (function () {
         const editingId = state.editingId;
         const nParcelas = editingId ? 1 : Math.max(1, parseInt(dom.parcelas.value, 10) || 1);
 
+        // Aviso de duplicado: mesma data+descrição+valor+tipo já existe? Pede uma
+        // segunda confirmação (salvar de novo) em vez de bloquear — duplicata
+        // legítima existe (duas academias no mesmo dia), acidental também.
+        if (!editingId && nParcelas === 1) {
+          const assinatura = [data.data, data.descricao, Number(data.valor).toFixed(2), data.tipo].join('|');
+          const jaExiste = StorageService.getLancamentos().some((l) =>
+            l.data === data.data && l.descricao === data.descricao &&
+            Number(l.valor).toFixed(2) === Number(data.valor).toFixed(2) && l.tipo === data.tipo);
+          if (jaExiste && state.confirmandoDuplicado !== assinatura) {
+            state.confirmandoDuplicado = assinatura;
+            UI.showMessage('⚠️ Já existe um lançamento igual nesta data. Clique em Salvar de novo se for proposital.');
+            return;
+          }
+          state.confirmandoDuplicado = null;
+        }
+
         if (nParcelas > 1) {
           // Compra parcelada: o Valor é o de CADA parcela; gera uma por mês a partir da
           // data escolhida, numerada na observação — chega de controlar "5 de 27" na mão.
@@ -620,6 +636,9 @@ const LancamentosPage = (function () {
       resetForm();
       registerEvents();
       atualizarSugestoesDescricao();
+      // ?buscar=... (vindo do "A revisar" da Análise) já abre a tabela filtrada
+      const buscar = new URLSearchParams(window.location.search).get('buscar');
+      if (buscar) dom.filtroTexto.value = buscar;
       updateTable();
       renderContasDoMes();
     } catch (error) {

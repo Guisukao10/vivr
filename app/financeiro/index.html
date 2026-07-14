@@ -30,6 +30,15 @@
 .pc-val{flex:0 0 auto;font-variant-numeric:tabular-nums}
 .pc-mais{font-size:.68rem;color:#aaa;padding-top:6px}
 .pc-entradas{margin-top:8px;padding-top:8px;border-top:1px dashed #eee;font-size:.74rem;color:#15803D}
+.cat-delta{font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
+.cat-delta.up{background:#FEE2E2;color:#B91C1C}
+.cat-delta.down{background:#DCFCE7;color:#15803D}
+.cat-delta.novo{background:#F4F4F5;color:#71717A}
+#revisaoAlerts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:1rem}
+.rv-lbl{font-size:.72rem;font-weight:700;color:#888}
+.rv-chip{font-size:.72rem;padding:5px 11px;border-radius:14px;background:#F4F4F5;color:#3F3F46;border:1px solid #E4E4E7;text-decoration:none}
+.rv-chip:hover{border-color:#A1A1AA}
+.rv-mais{font-size:.7rem;color:#aaa}
 #budgetAlerts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:1rem}
 .ba-chip{font-size:.75rem;padding:6px 12px;border-radius:16px;font-weight:500}
 .ba-chip.warn{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
@@ -103,6 +112,7 @@
   <div class="fin-hero" id="finHero"></div>
 
   <div id="budgetAlerts" style="display:none"></div>
+  <div id="revisaoAlerts" style="display:none"></div>
 
   <div id="summaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem"></div>
 

@@ -442,11 +442,29 @@ const AnalisePage = (function () {
 
   // Lista ordenada com barra e % do total — mais fácil de comparar de relance do que
   // uma pizza (comparar ângulo de fatia é impreciso) ou uma tabela crua de números.
-  function renderResumoCategoria(totais) {
+  // Cada categoria mostra a variação vs mês anterior: aponta ONDE agir, não só o total.
+  function renderResumoCategoria(totais, periodo) {
     const container = document.getElementById('resumoCategoria');
     container.innerHTML = '';
     const entries = totais && totais.gastosPorCategoria ? Object.entries(totais.gastosPorCategoria) : [];
     if (!entries.length) { container.textContent = 'Sem gastos no período.'; return; }
+
+    // gastos por categoria do mês imediatamente anterior (só quando um mês está selecionado)
+    let prevMap = null;
+    if (periodo && periodo !== 'all') {
+      const [mes, ano] = periodo.split('/').map(Number);
+      if (mes && ano) {
+        const antD = new Date(ano, mes - 2, 1);
+        const compAnt = `${String(antD.getMonth() + 1).padStart(2, '0')}/${antD.getFullYear()}`;
+        prevMap = {};
+        getLancamentos().forEach((l) => {
+          if (l.tipo !== 'despesa' || Utils.calculateCompetencia(l.data) !== compAnt) return;
+          const nome = UI.mapCategoryName(l.categoriaId);
+          prevMap[nome] = (prevMap[nome] || 0) + Number(l.valor || 0);
+        });
+        if (!Object.keys(prevMap).length) prevMap = null; // sem histórico, sem comparação
+      }
+    }
 
     entries.sort((a, b) => b[1] - a[1]);
     const totalGasto = entries.reduce((s, [, v]) => s + v, 0);
@@ -454,11 +472,44 @@ const AnalisePage = (function () {
 
     container.innerHTML = entries.map(([cat, valor]) => {
       const pct = totalGasto ? Math.round(valor / totalGasto * 100) : 0;
+      let delta = '';
+      if (prevMap) {
+        const ant = prevMap[cat] || 0;
+        if (!ant) delta = '<span class="cat-delta novo">novo</span>';
+        else {
+          const varPct = (valor - ant) / ant * 100;
+          if (Math.abs(varPct) >= 5) {
+            delta = varPct > 0
+              ? `<span class="cat-delta up">▲ ${Math.round(varPct)}%</span>`
+              : `<span class="cat-delta down">▼ ${Math.round(Math.abs(varPct))}%</span>`;
+          }
+        }
+      }
       return `<div class="cat-bar-row">
-        <div class="cat-bar-top"><span class="cat-name">${cat}</span><span>${Utils.formatCurrency(valor)} · ${pct}%</span></div>
+        <div class="cat-bar-top"><span class="cat-name">${cat} ${delta}</span><span>${Utils.formatCurrency(valor)} · ${pct}%</span></div>
         <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${max ? (valor / max * 100) : 0}%"></div></div>
       </div>`;
-    }).join('');
+    }).join('') + (prevMap ? '<div style="font-size:.65rem;color:#bbb;margin-top:8px">▲▼ variação vs mês anterior (mostrada quando ≥5%)</div>' : '');
+  }
+
+  /* Lançamentos suspeitos ("Desconhecido", observação com "?") ficam num aviso
+     pedindo revisão, em vez de sumir na massa — dado ruim vira decisão ruim. */
+  function renderRevisaoPendente() {
+    const el = document.getElementById('revisaoAlerts');
+    if (!el) return;
+    const suspeitos = getLancamentos().filter((l) => {
+      const d = (l.descricao || '').toLowerCase();
+      const o = String(l.obs || l.observacao || '');
+      return d.indexOf('desconhecido') !== -1 || d.indexOf('?') !== -1 || o.indexOf('?') !== -1;
+    });
+    if (!suspeitos.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    const visiveis = suspeitos.slice(0, 4);
+    el.innerHTML = '<span class="rv-lbl">🔍 A revisar:</span>' +
+      visiveis.map((l) =>
+        `<a class="rv-chip" href="lancamentos.html?buscar=${encodeURIComponent(l.descricao)}" title="Abrir em Lançamentos">` +
+        `${Utils.formatDate(l.data)} · ${l.descricao} · ${Utils.formatCurrency(l.valor)}</a>`).join('') +
+      (suspeitos.length > visiveis.length ? `<span class="rv-mais">+ ${suspeitos.length - visiveis.length}</span>` : '');
   }
 
   function renderPeriodInfo(periodo, registrosPeriodo, totalRegistros) {
@@ -492,7 +543,8 @@ const AnalisePage = (function () {
     renderGastosPorResponsavel(selectedPeriod);
     renderProximosCompromissos();
     renderRecentAndTop(selectedPeriod);
-    renderResumoCategoria(totais);
+    renderResumoCategoria(totais, selectedPeriod);
+    renderRevisaoPendente();
     renderMetasFinanceiras();
   }
 
