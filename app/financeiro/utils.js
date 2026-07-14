@@ -66,6 +66,12 @@ function parseDateToISO(value) {
   return d.toISOString().split('T')[0];
 }
 
+// "Hoje" no fuso local — toISOString() é UTC e depois das 21h no Brasil já vira amanhã.
+function hojeISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 function generateId(prefix='id') {
   const random = Math.random().toString(36).substr(2, 9);
   return `${prefix}-${Date.now()}-${random}`;
@@ -116,7 +122,7 @@ function normalizeEntry(entry) {
   if (!entry || typeof entry !== 'object') return null;
 
   const rawData = entry.data || entry.date || entry.dataISO || entry.dateISO;
-  const dateISO = parseDateToISO(rawData) || new Date().toISOString().split('T')[0];
+  const dateISO = parseDateToISO(rawData) || hojeISO();
   const month = calculateMonth(dateISO);
   const year = calculateYear(dateISO);
   const competence = calculateCompetencia(dateISO);
@@ -209,6 +215,7 @@ window.Utils = {
   parseBrazilianDate,
   isValidDateString,
   parseDateToISO,
+  hojeISO,
   generateId,
   calculateMonth,
   calculateYear,

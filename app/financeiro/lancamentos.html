@@ -13,6 +13,30 @@
 .lc-tipo-btn.on[data-tipo="despesa"]{border-color:#FCA5A5;background:#FEF2F2;color:#B91C1C}
 .lc-tipo-btn.on[data-tipo="receita"]{border-color:#86EFAC;background:#F0FDF4;color:#15803D}
 .lc-toggle-detalhes{background:none;border:none;color:var(--color-primary);font-size:.8rem;font-weight:600;cursor:pointer;padding:6px 0;margin-bottom:8px}
+
+/* tabela de lançamentos: linha clicável */
+#tabelaLancamentos tbody tr{transition:background .12s}
+#tabelaLancamentos tbody tr:hover{background:#f8faff}
+
+/* ── Contas do mês (recorrentes detectadas) ── */
+#contasMesPanel{border-left:4px solid #EF9F27}
+#contasMesPanel.ok{border-left-color:#22C55E}
+.cm-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:.85rem}
+.cm-total{font-size:.72rem;color:#888;margin-left:auto}
+.cm-sub{font-size:.74rem;color:#888;margin:0 0 8px}
+.cm-table{font-size:.78rem}
+.cm-table th{font-size:.68rem}
+.cm-dia{font-size:.68rem;font-weight:700;color:#EF9F27;text-transform:uppercase;white-space:nowrap}
+.cm-desc{font-weight:600}
+.cm-cat{color:#888;font-size:.72rem}
+.cm-val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.cm-why{background:none;border:none;color:var(--color-primary);font-size:.72rem;font-weight:600;cursor:pointer;padding:0;white-space:nowrap}
+.cm-why:hover{text-decoration:underline}
+.cm-hist td{background:#FFFBEB;font-size:.74rem;color:#57534E;padding:8px 12px}
+.cm-hist-datas{margin-top:4px;color:#888;font-size:.7rem}
+
+/* Prévia do parcelamento (aparece quando Parcelas > 1) */
+.lc-parcelas-preview{margin:2px 0 12px;padding:9px 12px;border-radius:9px;font-size:.78rem;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
 </style>
 </head>
 <body>
@@ -72,6 +96,7 @@
         <div style="max-width:110px"><label>Parcelas</label><input type="number" id="parcelas" min="1" max="120" step="1" placeholder="1x" title="Valor de CADA parcela no campo Valor. Ex: 27 parcelas de R$ 1.500 → Valor 1500, Parcelas 27"/></div>
         <div style="flex:2"><label>Observação</label><input type="text" id="obs" placeholder="Opcional"/></div>
       </div>
+      <div id="parcelasPreview" class="lc-parcelas-preview" style="display:none"></div>
 
       <button type="button" class="lc-toggle-detalhes" id="btnToggleDetalhes">+ Mais detalhes (opcional)</button>
       <div class="form-group lc-detalhes" id="lcDetalhes" style="display:none">

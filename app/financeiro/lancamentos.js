@@ -176,7 +176,7 @@ const LancamentosPage = (function () {
 
     function montarPayload(subId){
       return {
-        data: dom.data.value || new Date().toISOString().split('T')[0],
+        data: dom.data.value || Utils.hojeISO(),
         tipo: dom.tipo.value,
         responsavelId: dom.responsavel.value || null,
         categoriaId,
@@ -226,9 +226,9 @@ const LancamentosPage = (function () {
 
   /* ── Contas do mês ──
      Detecta despesas/receitas que se repetem todo mês (mesma descrição+valor, no máximo
-     uma por mês, em 3+ dos últimos 4 meses — ou marcadas como recorrentes) e que ainda
-     não existem no mês atual. Um clique lança; "Lançar todas" resolve o mês inteiro. */
-  function detectarContasDoMes() {
+     uma por mês, em 3+ dos últimos 4 meses — ou marcadas como recorrentes). Cada sugestão
+     carrega o histórico que a gerou, pra pessoa conferir de onde a frequência veio. */
+  function detectarRecorrentes() {
     const hoje = new Date();
     const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
     const ultimos4 = [];
@@ -244,7 +244,7 @@ const LancamentosPage = (function () {
       (grupos[key] = grupos[key] || []).push(l);
     });
 
-    const candidatos = [];
+    const recorrentes = [];
     Object.values(grupos).forEach((lista) => {
       const mesesDistintos = {};
       let temNoMesAtual = false;
@@ -255,20 +255,25 @@ const LancamentosPage = (function () {
         if (m === mesAtual) temNoMesAtual = true;
         if (l.recurring) recorrenteExplicito = true;
       });
-      if (temNoMesAtual) return;
       const nosUltimos4 = ultimos4.filter((m) => mesesDistintos[m]).length;
       const umaPorMes = Object.values(mesesDistintos).every((c) => c === 1);
       // Fixas de verdade: uma por mês. Café de R$ 2,50 cinco vezes por semana não entra.
       if (!recorrenteExplicito && !(nosUltimos4 >= 3 && umaPorMes)) return;
+      const historico = lista.slice().sort((a, b) => b.data.localeCompare(a.data));
+      const maisRecente = historico[0];
       // Precisa ter ocorrido recentemente (não sugerir conta encerrada há meses)
-      const maisRecente = lista.slice().sort((a, b) => b.data.localeCompare(a.data))[0];
-      if (ultimos4.indexOf(maisRecente.data.slice(0, 7)) === -1 && !recorrenteExplicito) return;
+      if (ultimos4.indexOf(maisRecente.data.slice(0, 7)) === -1 &&
+          maisRecente.data.slice(0, 7) !== mesAtual && !recorrenteExplicito) return;
 
       const dias = lista.map((l) => parseInt(l.data.slice(8, 10), 10)).sort((a, b) => a - b);
       const diaTipico = dias[Math.floor(dias.length / 2)];
-      candidatos.push({ modelo: maisRecente, diaTipico });
+      recorrentes.push({ modelo: maisRecente, diaTipico, historico, nosUltimos4, recorrenteExplicito, jaNoMesAtual: temNoMesAtual });
     });
-    return candidatos.sort((a, b) => a.diaTipico - b.diaTipico);
+    return recorrentes.sort((a, b) => a.diaTipico - b.diaTipico);
+  }
+
+  function detectarContasDoMes() {
+    return detectarRecorrentes().filter((c) => !c.jaNoMesAtual);
   }
 
   function lancarConta(cand) {
@@ -292,26 +297,69 @@ const LancamentosPage = (function () {
     });
   }
 
+  // "Por quê?": os lançamentos que fizeram o sistema entender a frequência —
+  // a sugestão deixa de ser caixa-preta e vira algo que dá pra conferir e confiar.
+  function evidenciaHtml(c) {
+    const datas = c.historico.slice(0, 8).map((l) => Utils.formatDate(l.data));
+    const mais = c.historico.length > 8 ? ' e mais ' + (c.historico.length - 8) : '';
+    const criterio = c.recorrenteExplicito
+      ? 'Você marcou esta conta como <strong>recorrente</strong>.'
+      : 'Apareceu em <strong>' + c.nosUltimos4 + ' dos últimos 4 meses</strong>, sempre uma vez por mês.';
+    return criterio +
+      '<div class="cm-hist-datas">Lançamentos que geraram a sugestão: ' + datas.join(' · ') + mais +
+      ' — sempre ' + Utils.formatCurrency(c.modelo.valor) +
+      (c.modelo.categoriaId ? ' em ' + UI.mapCategoryName(c.modelo.categoriaId) : '') + '.</div>';
+  }
+
   function renderContasDoMes() {
     const box = document.getElementById('contasMesPanel');
     if (!box) return;
-    const cands = detectarContasDoMes();
-    if (!cands.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    const todas = detectarRecorrentes();
+    const cands = todas.filter((c) => !c.jaNoMesAtual);
+
+    if (!todas.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.style.display = '';
+
+    // Mês em dia: em vez de sumir, confirma — a pessoa sabe que o vivr está de olho.
+    if (!cands.length) {
+      box.classList.add('ok');
+      box.innerHTML = '<div class="cm-header"><strong>✅ Contas fixas do mês em dia</strong>' +
+        '<span class="cm-total">' + todas.length + ' conta(s) recorrente(s) conhecida(s), todas já lançadas este mês</span></div>';
+      return;
+    }
+    box.classList.remove('ok');
+
     const total = cands.reduce((s, c) => s + Number(c.modelo.valor), 0);
+    const responsaveis = StorageService.getResponsaveis();
     box.innerHTML =
       '<div class="cm-header"><strong>🔁 Contas do mês ainda não lançadas</strong>' +
       '<span class="cm-total">' + cands.length + ' conta(s) · ' + Utils.formatCurrency(total) + '</span>' +
       '<button class="btn btn-small btn-primary" id="btnLancarTodas">Lançar todas</button></div>' +
+      '<p class="cm-sub">Sugestões vindas do seu histórico. Clique em <strong>por quê?</strong> pra ver os lançamentos que geraram cada uma.</p>' +
+      '<div style="overflow-x:auto"><table class="grid-table cm-table"><thead><tr>' +
+      '<th>Dia</th><th>Descrição</th><th>Categoria</th><th>Responsável</th><th>Valor</th><th>Detecção</th><th></th>' +
+      '</tr></thead><tbody>' +
       cands.map((c, i) =>
-        '<div class="cm-row">' +
-          '<span class="cm-dia">dia ' + c.diaTipico + '</span>' +
-          '<span class="cm-desc">' + c.modelo.descricao + (c.modelo.tipo === 'receita' ? ' <span style="color:#15803D">(ganho)</span>' : '') + '</span>' +
-          '<span class="cm-cat">' + UI.mapCategoryName(c.modelo.categoriaId) + '</span>' +
-          '<strong class="cm-val">' + Utils.formatCurrency(c.modelo.valor) + '</strong>' +
-          '<button class="btn btn-small" data-cm-idx="' + i + '">Lançar</button>' +
-        '</div>').join('');
+        '<tr>' +
+          '<td class="cm-dia">dia ' + c.diaTipico + '</td>' +
+          '<td class="cm-desc">' + c.modelo.descricao + (c.modelo.tipo === 'receita' ? ' <span style="color:#15803D">(ganho)</span>' : '') + '</td>' +
+          '<td class="cm-cat">' + UI.mapCategoryName(c.modelo.categoriaId) + '</td>' +
+          '<td class="cm-cat">' + nomePorId(responsaveis, c.modelo.responsavelId) + '</td>' +
+          '<td class="cm-val">' + Utils.formatCurrency(c.modelo.valor) + '</td>' +
+          '<td><button type="button" class="cm-why" data-cm-why="' + i + '">' +
+            (c.recorrenteExplicito ? '🔁 recorrente' : '📅 ' + c.nosUltimos4 + ' de 4 meses') + ' · por quê?</button></td>' +
+          '<td><button class="btn btn-small" data-cm-idx="' + i + '">Lançar</button></td>' +
+        '</tr>' +
+        '<tr class="cm-hist" data-cm-hist="' + i + '" style="display:none"><td colspan="7">' + evidenciaHtml(c) + '</td></tr>'
+      ).join('') +
+      '</tbody></table></div>';
 
+    box.querySelectorAll('[data-cm-why]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const row = box.querySelector('[data-cm-hist="' + btn.dataset.cmWhy + '"]');
+        if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+      });
+    });
     box.querySelectorAll('[data-cm-idx]').forEach((btn) => {
       btn.addEventListener('click', () => {
         btn.disabled = true;
@@ -331,6 +379,30 @@ const LancamentosPage = (function () {
         updateTable();
       });
     });
+  }
+
+  // Prévia do parcelamento em tempo real: antes de salvar, a pessoa vê exatamente
+  // quantas parcelas, o total e até quando vão — sem surpresa depois do clique.
+  function atualizarPreviewParcelas() {
+    const box = document.getElementById('parcelasPreview');
+    const btnSalvar = dom.form.querySelector('button[type="submit"]');
+    if (!box) return;
+    const n = parseInt(dom.parcelas.value, 10) || 1;
+    const v = Number(dom.valor.value);
+    if (state.editingId || n <= 1 || !(v > 0)) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      if (btnSalvar) btnSalvar.textContent = 'Salvar lançamento';
+      return;
+    }
+    const base = dom.data.value || Utils.hojeISO();
+    const ultima = addMonthsIso(base, n - 1);
+    box.style.display = '';
+    box.innerHTML = '💳 <strong>' + n + '× de ' + Utils.formatCurrency(v) + '</strong> = ' +
+      Utils.formatCurrency(v * n) + ' no total · uma parcela por mês, de ' +
+      Utils.formatDate(base) + ' até ' + Utils.formatDate(ultima) +
+      ', numeradas na observação (Parcela 1/' + n + ', 2/' + n + '...).';
+    if (btnSalvar) btnSalvar.textContent = 'Salvar ' + n + ' parcelas';
   }
 
   function renderTable(lancamentos) {
@@ -450,6 +522,8 @@ const LancamentosPage = (function () {
     dom.recorrente.value = item.recurring ? 'sim' : 'nao';
     dom.fixoVariavel.value = item.fixoVariavel || 'variavel';
     dom.pagamento.value = item.pagamentoId || '';
+    dom.parcelas.value = ''; // edição altera só este lançamento; parcelas não se aplicam
+    atualizarPreviewParcelas();
     dom.btnCancelarEdicao.style.display = '';
     setDetalhesVisiveis(true); // editar já mostra tudo — evita esconder dado que a pessoa já tinha preenchido
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -466,10 +540,11 @@ const LancamentosPage = (function () {
     dom.parcelas.value = '';
     dom.subcategoriaNova.value = '';
     dom.subcategoriaNova.disabled = true;
-    dom.data.value = new Date().toISOString().substr(0, 10);
+    dom.data.value = Utils.hojeISO();
     dom.btnCancelarEdicao.style.display = 'none';
     setTipo('despesa');
     setDetalhesVisiveis(false);
+    atualizarPreviewParcelas();
   }
 
   function registerEvents() {
@@ -479,6 +554,8 @@ const LancamentosPage = (function () {
 
     dom.btnTipoDespesa.addEventListener('click', () => setTipo('despesa'));
     dom.btnTipoReceita.addEventListener('click', () => setTipo('receita'));
+
+    [dom.parcelas, dom.valor, dom.data].forEach((el) => el.addEventListener('input', atualizarPreviewParcelas));
 
     dom.btnToggleDetalhes.addEventListener('click', () => {
       const visivel = dom.lcDetalhes[0].style.display !== 'none';
