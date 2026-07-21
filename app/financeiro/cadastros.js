@@ -135,10 +135,11 @@ const CadastrosPage = (function () {
     const nome = input.value.trim();
     if (!nome) { alert('Digite um nome.'); return; }
 
-    const lista = StorageService.getTiposPagamento();
+    const lista = StorageService.getTiposPagamento().filter((p) => p.tipo === 'pagamento');
     if (validarDuplicidade(lista, nome)) { alert('Este tipo já existe.'); return; }
 
-    StorageService.addTipoPagamento({ nome }).then(() => {
+    // tipo:'pagamento' — é o que aparece no lançamento quando "Gastei" (débito, crédito, ticket...).
+    StorageService.addTipoPagamento({ nome, tipo: 'pagamento' }).then(() => {
       input.value = '';
       renderTipoPagamento();
       UI.showMessage('Tipo de pagamento adicionado');
@@ -165,10 +166,11 @@ const CadastrosPage = (function () {
     const nome = input.value.trim();
     if (!nome) { alert('Digite um nome.'); return; }
 
-    const lista = StorageService.getTiposPagamento();
+    const lista = StorageService.getTiposPagamento().filter((p) => p.tipo === 'recebimento');
     if (validarDuplicidade(lista, nome)) { alert('Este tipo já existe.'); return; }
 
-    StorageService.addTipoPagamento({ nome }).then(() => {
+    // tipo:'recebimento' — aparece no lançamento quando "Recebi" (pix, transferência, boleto...).
+    StorageService.addTipoPagamento({ nome, tipo: 'recebimento' }).then(() => {
       input.value = '';
       renderRecebimento();
       UI.showMessage('Tipo de recebimento adicionado');
@@ -182,7 +184,7 @@ const CadastrosPage = (function () {
     if (entityType === 'responsaveis') op = StorageService.removeResponsavel(id);
     else if (entityType === 'categorias' || entityType === 'categorias-gastos' || entityType === 'categorias-ganhos') op = StorageService.removeCategoria(id);
     else if (entityType === 'subcategorias') op = StorageService.removeSubcategoria(id);
-    else if (entityType === 'pagamentos') op = StorageService.removeTipoPagamento(id);
+    else if (entityType === 'pagamentos' || entityType === 'recebimentos') op = StorageService.removeTipoPagamento(id);
     else if (entityType === 'status') op = StorageService.removeStatus(id);
     else return;
 
@@ -192,7 +194,8 @@ const CadastrosPage = (function () {
         'categorias-gastos': StorageService.getCategorias().filter((c) => c.tipo === 'despesa'),
         'categorias-ganhos': StorageService.getCategorias().filter((c) => c.tipo === 'receita'),
         subcategorias: StorageService.getSubcategorias(),
-        pagamentos: StorageService.getTiposPagamento(),
+        pagamentos: StorageService.getTiposPagamento().filter((p) => p.tipo === 'pagamento'),
+        recebimentos: StorageService.getTiposPagamento().filter((p) => p.tipo === 'recebimento'),
         status: StorageService.getStatus(),
       };
       renderItemList(containerId, lists[entityType] || [], entityType);
@@ -216,7 +219,7 @@ const CadastrosPage = (function () {
       });
     } else if (entityType === 'subcategorias') {
       StorageService.updateSubcategoria(item.id, { nome: novoNome }).then(renderSubcategorias);
-    } else if (entityType === 'pagamentos') {
+    } else if (entityType === 'pagamentos' || entityType === 'recebimentos') {
       StorageService.updateTipoPagamento(item.id, { nome: novoNome }).then(() => {
         renderTipoPagamento();
         renderRecebimento();
@@ -364,7 +367,7 @@ const CadastrosPage = (function () {
   }
 
   function renderTipoPagamento() {
-    renderItemList('listaTPagamento', StorageService.getTiposPagamento(), 'pagamentos');
+    renderItemList('listaTPagamento', StorageService.getTiposPagamento().filter((p) => p.tipo === 'pagamento'), 'pagamentos');
   }
 
   function renderStatus() {
@@ -372,7 +375,7 @@ const CadastrosPage = (function () {
   }
 
   function renderRecebimento() {
-    renderItemList('listaRecebimento', StorageService.getTiposPagamento(), 'pagamentos');
+    renderItemList('listaRecebimento', StorageService.getTiposPagamento().filter((p) => p.tipo === 'recebimento'), 'recebimentos');
   }
 
   function init() {

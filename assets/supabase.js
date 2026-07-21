@@ -59,6 +59,30 @@ var vivr = (function(){
         return d;
       });
     },
+    // Dispara o e-mail de recuperação de senha (fluxo padrão do Supabase Auth) —
+    // ninguém além da própria pessoa vê ou define a senha nova.
+    recover: function(email, redirectTo){
+      var qs = redirectTo ? '?redirect_to=' + encodeURIComponent(redirectTo) : '';
+      return fetch(url+'/auth/v1/recover'+qs, {
+        method:'POST', headers:{'apikey':key,'Content-Type':'application/json'},
+        body: JSON.stringify({email:email})
+      }).then(function(r){
+        if(r.status===204||r.ok) return true;
+        return r.json().then(function(d){ throw new Error(d.error_description||d.msg||d.error||'Erro ao enviar e-mail de recuperação'); });
+      });
+    },
+    // Define a senha nova usando o access_token de recuperação (vem no link do e-mail,
+    // não é a sessão normal de login).
+    updatePassword: function(recoveryAccessToken, newPassword){
+      return fetch(url+'/auth/v1/user', {
+        method:'PUT',
+        headers:{'apikey':key,'Authorization':'Bearer '+recoveryAccessToken,'Content-Type':'application/json'},
+        body: JSON.stringify({password:newPassword})
+      }).then(function(r){ return r.json().then(function(d){
+        if(!r.ok) throw new Error(d.error_description||d.msg||d.error||'Erro ao definir nova senha');
+        return d;
+      }); });
+    },
     signOut: function(){
       var token = getToken();
       localStorage.removeItem('sb-cckalvgublrqkacljymz-auth-token');
@@ -140,7 +164,24 @@ var vivr = (function(){
     });
   }
 
-  return { auth:auth, from:from, rpc:rpc };
+  /* ── Edge Functions ── */
+  // Headers próprios (sem "Prefer", que é coisa do PostgREST) — a edge function só libera
+  // authorization/content-type/apikey/x-client-info no CORS; mandar "Prefer" faz o preflight
+  // falhar e o fetch morre com "Failed to fetch" sem nem chegar a sair do navegador.
+  function fn(name, body){
+    return fetch(url + '/functions/v1/' + name, {
+      method: 'POST',
+      headers: {'apikey': key, 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json'},
+      body: JSON.stringify(body||{})
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(d){
+        if(!r.ok) throw new Error(d.error || ('Erro ' + r.status + ' na função ' + name));
+        return d;
+      });
+    });
+  }
+
+  return { auth:auth, from:from, rpc:rpc, fn:fn };
 }());
 
 /* ── Guard: redirect to login if not authenticated ── */

@@ -43,6 +43,7 @@ const LancamentosPage = (function () {
       filtroResponsavel: document.getElementById('filtroResponsavel'),
       filtroTipo: document.getElementById('filtroTipo'),
       filtroCategoria: document.getElementById('filtroCategoria'),
+      filtroPagamento: document.getElementById('filtroPagamento'),
       filtroSubcategoria: document.getElementById('filtroSubcategoria'),
       filtroStatus: document.getElementById('filtroStatus'),
       filtroFixoVariavel: document.getElementById('filtroFixoVariavel'),
@@ -75,6 +76,23 @@ const LancamentosPage = (function () {
     dom.btnTipoDespesa.classList.toggle('on', tipo === 'despesa');
     dom.btnTipoReceita.classList.toggle('on', tipo === 'receita');
     atualizarCategoriaPorTipo();
+    atualizarPagamentoPorTipo();
+  }
+
+  // Gastei → só formas de pagamento (débito/crédito/ticket...). Recebi → só formas de
+  // recebimento (pix...). Se o lançamento já tem uma forma antiga não classificada
+  // (cadastrada antes dessa separação existir), ela entra mesmo assim marcada como tal —
+  // trocar de aba não pode apagar silenciosamente o que já estava salvo.
+  function atualizarPagamentoPorTipo(pagamentoIdDesejado) {
+    const wantTipo = dom.tipo.value === 'despesa' ? 'pagamento' : 'recebimento';
+    const alvo = pagamentoIdDesejado !== undefined ? pagamentoIdDesejado : dom.pagamento.value;
+    const todos = StorageService.getTiposPagamento();
+    let opcoes = todos.filter((p) => p.tipo === wantTipo);
+    if (alvo && !opcoes.some((p) => p.id === alvo)) {
+      const legado = todos.find((p) => p.id === alvo);
+      if (legado) opcoes = opcoes.concat([Object.assign({}, legado, { nome: legado.nome + ' (não classificado)' })]);
+    }
+    preencherSelect(dom.pagamento, opcoes, (x) => x.nome, (x) => x.id, false, alvo);
   }
 
   // Enquanto a pessoa digita a descrição, tenta adivinhar a categoria — ela só precisa
@@ -144,11 +162,15 @@ const LancamentosPage = (function () {
     preencherSelect(dom.responsavel, StorageService.getResponsaveis(), (x) => x.nome, (x) => x.id);
     atualizarCategoriaPorTipo();
     preencherSelect(dom.status, StorageService.getStatus(), (x) => x.nome, (x) => x.id);
-    preencherSelect(dom.pagamento, StorageService.getTiposPagamento(), (x) => x.nome, (x) => x.id);
+    // dom.pagamento é preenchido por atualizarPagamentoPorTipo() (chamado dentro de setTipo,
+    // logo abaixo em resetForm) — já nasce filtrado por Gastei/Recebi.
 
     preencherSelect(dom.filtroResponsavel, StorageService.getResponsaveis(), (x) => x.nome, (x) => x.id, true);
     preencherSelect(dom.filtroCategoria, StorageService.getCategorias(), (x) => x.nome, (x) => x.id, true);
     preencherSelect(dom.filtroStatus, StorageService.getStatus(), (x) => x.nome, (x) => x.id, true);
+    // Filtro do histórico enxerga TODOS os tipos de pagamento (inclusive os antigos não
+    // classificados) — precisa achar lançamentos velhos independente da separação nova.
+    preencherSelect(dom.filtroPagamento, StorageService.getTiposPagamento(), (x) => x.nome, (x) => x.id, true);
 
     atualizarFiltroSubcategorias();
   }
@@ -279,13 +301,46 @@ const LancamentosPage = (function () {
     return detectarRecorrentes().filter((c) => !c.jaNoMesAtual);
   }
 
-  function lancarConta(cand) {
+  // Data sugerida pra lançar a conta este mês: o dia típico dela, ajustado se o mês
+  // atual for mais curto (ex: dia 31 detectado vira 30 em mês de 30 dias).
+  function diaSugeridoIso(diaTipico) {
     const hoje = new Date();
     const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-    const dia = Math.min(cand.diaTipico, ultimoDia);
+    const dia = Math.min(diaTipico, ultimoDia);
+    return hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+  }
+
+  // "Editar antes de lançar": em vez de gravar direto com os valores do último mês,
+  // joga a sugestão no formulário do topo (como um lançamento novo, não uma edição)
+  // e foca o Valor — o campo que mais costuma mudar de mês pra mês (conta de luz,
+  // fatura variável...). A pessoa confere/ajusta e salva quando quiser.
+  function prefillContaSugerida(cand) {
+    const m = cand.modelo;
+    dom.data.value = diaSugeridoIso(cand.diaTipico);
+    setTipo(m.tipo);
+    dom.responsavel.value = m.responsavelId || '';
+    dom.categoria.value = m.categoriaId || '';
+    atualizarSubcategorias(m.categoriaId);
+    dom.subcategoria.value = m.subcategoriaId || 'novo';
+    dom.descricao.value = m.descricao;
+    dom.valor.value = m.valor;
+    dom.obs.value = m.obs || m.observacao || '';
+    dom.recorrente.value = 'sim';
+    dom.fixoVariavel.value = 'fixo';
+    atualizarPagamentoPorTipo(m.pagamentoId || '');
+    setDetalhesVisiveis(true);
+    atualizarPreviewParcelas();
+    dom.formWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    dom.valor.focus();
+    dom.valor.select();
+    UI.showMessage('Preenchido a partir do histórico — confira e ajuste antes de salvar.');
+  }
+
+  function lancarConta(cand) {
+    const dataIso = diaSugeridoIso(cand.diaTipico);
     const m = cand.modelo;
     return StorageService.addLancamento({
-      data: hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0'),
+      data: dataIso,
       tipo: m.tipo,
       responsavelId: m.responsavelId || null,
       categoriaId: m.categoriaId || null,
@@ -351,7 +406,8 @@ const LancamentosPage = (function () {
           '<td class="cm-val">' + Utils.formatCurrency(c.modelo.valor) + '</td>' +
           '<td><button type="button" class="cm-why" data-cm-why="' + i + '">' +
             (c.recorrenteExplicito ? '🔁 recorrente' : '📅 ' + c.nosUltimos4 + ' de 4 meses') + ' · por quê?</button></td>' +
-          '<td><button class="btn btn-small" data-cm-idx="' + i + '">Lançar</button></td>' +
+          '<td><button class="btn btn-small" data-cm-idx="' + i + '">Lançar</button> ' +
+            '<button type="button" class="btn btn-small btn-info" data-cm-edit="' + i + '">✏️ Editar</button></td>' +
         '</tr>' +
         '<tr class="cm-hist" data-cm-hist="' + i + '" style="display:none"><td colspan="7">' + evidenciaHtml(c) + '</td></tr>'
       ).join('') +
@@ -372,6 +428,9 @@ const LancamentosPage = (function () {
           updateTable();
         });
       });
+    });
+    box.querySelectorAll('[data-cm-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => prefillContaSugerida(cands[btn.dataset.cmEdit]));
     });
     const btnTodas = document.getElementById('btnLancarTodas');
     if (btnTodas) btnTodas.addEventListener('click', () => {
@@ -444,6 +503,7 @@ const LancamentosPage = (function () {
       responsavelId: dom.filtroResponsavel.value,
       tipo: dom.filtroTipo.value,
       categoriaId: dom.filtroCategoria.value,
+      pagamentoId: dom.filtroPagamento.value,
       subcategoriaId: dom.filtroSubcategoria.value,
       statusId: dom.filtroStatus.value,
       fixoVariavel: dom.filtroFixoVariavel.value,
@@ -458,6 +518,7 @@ const LancamentosPage = (function () {
       if (filtro.responsavelId && item.responsavelId !== filtro.responsavelId) return false;
       if (filtro.tipo && item.tipo !== filtro.tipo) return false;
       if (filtro.categoriaId && item.categoriaId !== filtro.categoriaId) return false;
+      if (filtro.pagamentoId && item.pagamentoId !== filtro.pagamentoId) return false;
       if (filtro.subcategoriaId && item.subcategoriaId !== filtro.subcategoriaId) return false;
       if (filtro.statusId && item.statusId !== filtro.statusId) return false;
       if (filtro.fixoVariavel && item.fixoVariavel !== filtro.fixoVariavel) return false;
@@ -553,7 +614,7 @@ const LancamentosPage = (function () {
     dom.status.value = item.statusId || '';
     dom.recorrente.value = item.recurring ? 'sim' : 'nao';
     dom.fixoVariavel.value = item.fixoVariavel || 'variavel';
-    dom.pagamento.value = item.pagamentoId || '';
+    atualizarPagamentoPorTipo(item.pagamentoId || '');
     dom.parcelas.value = ''; // edição altera só este lançamento; parcelas não se aplicam
     dom.parcelas.closest('div').style.display = 'none';
     atualizarPreviewParcelas();
@@ -586,6 +647,23 @@ const LancamentosPage = (function () {
     setTipo('despesa');
     setDetalhesVisiveis(false);
     atualizarPreviewParcelas();
+  }
+
+  // Lançamento seguinte, estilo planilha: Data/Tipo/Responsável/Pagamento costumam se
+  // repetir entre lançamentos digitados em sequência (mesmo dia, mesmo cartão) — só
+  // limpa o que muda linha a linha, e devolve o foco pra Descrição pra já poder digitar
+  // a próxima sem tocar no mouse.
+  function prepararProximoLancamento() {
+    dom.descricao.value = '';
+    dom.valor.value = '';
+    dom.parcelas.value = '';
+    dom.parcelas.closest('div').style.display = '';
+    dom.obs.value = '';
+    dom.subcategoriaNova.value = '';
+    dom.subcategoriaNova.disabled = true;
+    atualizarCategoriaPorTipo(); // categoria volta pro topo da lista; sugestões de descrição recarregam
+    atualizarPreviewParcelas();
+    dom.descricao.focus();
   }
 
   function registerEvents() {
@@ -650,7 +728,7 @@ const LancamentosPage = (function () {
           return Promise.all(ops).then(() => {
             const ultima = addMonthsIso(data.data, nParcelas - 1);
             UI.showMessage(nParcelas + ' parcelas lançadas até ' + Utils.formatDate(ultima) + '.');
-            resetForm();
+            prepararProximoLancamento();
             updateTable();
             renderContasDoMes();
           });
@@ -659,7 +737,7 @@ const LancamentosPage = (function () {
         const op = editingId ? StorageService.updateLancamento(editingId, data) : StorageService.addLancamento(data);
         return op.then(() => {
           UI.showMessage(editingId ? 'Lançamento atualizado com sucesso.' : 'Lançamento criado com sucesso.');
-          resetForm();
+          if (editingId) resetForm(); else prepararProximoLancamento();
           updateTable();
           renderContasDoMes();
         });
@@ -698,6 +776,7 @@ const LancamentosPage = (function () {
       dom.filtroResponsavel.value = '';
       dom.filtroTipo.value = '';
       dom.filtroCategoria.value = '';
+      dom.filtroPagamento.value = '';
       dom.filtroSubcategoria.value = '';
       dom.filtroStatus.value = '';
       dom.filtroFixoVariavel.value = '';
@@ -707,7 +786,7 @@ const LancamentosPage = (function () {
 
     [
       dom.filtroTexto, dom.filtroCompetencia, dom.filtroResponsavel, dom.filtroTipo,
-      dom.filtroCategoria, dom.filtroSubcategoria, dom.filtroStatus, dom.filtroFixoVariavel,
+      dom.filtroCategoria, dom.filtroPagamento, dom.filtroSubcategoria, dom.filtroStatus, dom.filtroFixoVariavel,
     ].forEach((el) => el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', () => updateTable()));
 
     dom.tabelaCorpo.addEventListener('click', (ev) => {

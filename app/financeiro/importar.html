@@ -17,6 +17,16 @@
 .imp-summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 .imp-summary div{background:var(--color-gray-50);border-radius:8px;padding:8px 14px;font-size:.78rem}
 .imp-summary strong{display:block;font-size:1rem}
+.imp-drop{border:2px dashed var(--color-border);border-radius:12px;padding:26px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:14px}
+.imp-drop:hover,.imp-drop.over{border-color:var(--color-primary);background:#F8FAFF}
+.imp-drop .big{font-size:1.6rem}
+.imp-drop p{margin:6px 0 0;font-size:.8rem;color:var(--color-text-secondary)}
+.imp-status{display:none;margin:10px 0;padding:10px 14px;border-radius:9px;font-size:.8rem;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+.imp-status.err{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.imp-ai-setup{display:none;margin:10px 0;padding:14px;border-radius:10px;font-size:.8rem;background:#FFFBEB;border:1px solid #FDE68A;color:#78350F;line-height:1.55}
+.imp-ai-setup ol{margin:8px 0 0 18px}
+.imp-badge-dup{font-size:.62rem;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:8px;padding:1px 6px;white-space:nowrap}
+tr.imp-dup td{background:#FFFDF5}
 </style>
 </head>
 <body>
@@ -47,12 +57,27 @@
 <div class="content-area">
   <header class="page-header">
     <h1>Importar extrato</h1>
-    <p>Cole o texto do extrato (do app do banco, PDF copiado ou CSV) e o sistema identifica data, descrição e valor de cada linha</p>
+    <p>Envie o PDF da fatura/extrato ou cole o texto — o sistema identifica data, descrição e valor de cada lançamento</p>
   </header>
 
   <div class="panel" id="stepColar">
-    <h3>1. Cole o extrato</h3>
-    <p class="imp-note">Funciona melhor com uma linha por lançamento, contendo data, descrição e valor — o formato mais comum ao copiar de apps de banco. Exemplo: <code>01/07/2026 UBER TRIP 25,90</code></p>
+    <h3>1. Envie o PDF ou cole o texto</h3>
+    <div class="imp-drop" id="pdfDrop">
+      <div class="big">📄</div>
+      <strong>Clique para escolher o PDF</strong> ou arraste-o aqui
+      <p>Fatura de cartão ou extrato. PDFs sem texto (imagem, como os do app do Bradesco) são lidos por IA.</p>
+      <input type="file" id="filePdf" accept="application/pdf" style="display:none"/>
+    </div>
+    <div class="imp-status" id="pdfStatus"></div>
+    <div class="imp-ai-setup" id="aiSetup">
+      <strong>⚙️ A leitura por IA ainda não está configurada.</strong> É grátis e leva 2 minutos:
+      <ol>
+        <li>Acesse <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> com sua conta Google e clique em <em>Create API key</em>.</li>
+        <li>No painel do Supabase, abra <em>Edge Functions → parse-extrato → Secrets</em> e crie o secret <code>GEMINI_API_KEY</code> com a chave copiada.</li>
+        <li>Volte aqui e envie o PDF de novo.</li>
+      </ol>
+    </div>
+    <p class="imp-note">Ou cole o texto abaixo (uma linha por lançamento, ex: <code>01/07/2026 UBER TRIP 25,90</code>):</p>
     <textarea class="imp-textarea" id="txtExtrato" placeholder="Cole aqui o texto do extrato..."></textarea>
     <div class="form-group" style="margin-top:12px">
       <div>
@@ -71,6 +96,7 @@
         <select id="responsavelPadrao"></select>
       </div>
     </div>
+    <p class="imp-note" id="ultimoLancamentoInfo" style="display:none"></p>
     <button class="btn btn-primary" id="btnAnalisar">Analisar extrato</button>
   </div>
 
@@ -92,6 +118,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="../../assets/supabase.js"></script>
 <script>if(!requireAuth('../../auth/login.html')) throw '';</script>
 <script src="utils.js"></script>
