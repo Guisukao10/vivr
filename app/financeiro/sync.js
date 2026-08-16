@@ -92,7 +92,7 @@ function marcarDuplicados(rows) {
     var r = Utils.checarDuplicata(l, existentes);
     if (!r) return;
     if (r.nivel === 'exata') { l.jaExiste = true; l.selecionado = false; }
-    else { l.possivelDup = true; l.dupInfo = Utils.formatDate(r.match.data) + ' · ' + r.match.descricao + ' · ' + Utils.formatCurrency(r.match.valor); }
+    else { l.possivelDup = true; l.selecionado = false; l.dupInfo = Utils.formatDate(r.match.data) + ' · ' + r.match.descricao + ' · ' + Utils.formatCurrency(r.match.valor); }
   });
   return rows;
 }
@@ -114,13 +114,11 @@ function renderRevisao() {
     var pagOpts = pagamentos.map(function (p) {
       return '<option value="' + p.id + '"' + (p.id === l.pagamentoId ? ' selected' : '') + '>' + p.nome + '</option>';
     }).join('');
-    if (l.jaExiste) return ''; // já lançado exato — nem mostra, só polui a revisão
-    var badge = '';
-    if (l.possivelDup) badge = ' <span class="sync-badge warn" title="Parecido com: ' + (l.dupInfo || '').replace(/"/g, '&quot;') + '">possível duplicata</span>';
+    if (l.jaExiste || l.possivelDup) return ''; // duplicado (exato ou parecido) — não mostra, só o que falta sincronizar
     return '<tr>' +
       '<td><input type="checkbox" ' + (l.selecionado ? 'checked' : '') + ' onchange="VivrSync.toggle(' + i + ',this.checked)"/></td>' +
       '<td>' + Utils.formatDate(l.data) + '</td>' +
-      '<td><input type="text" value="' + l.descricao.replace(/"/g, '&quot;') + '" onchange="VivrSync.setCampo(' + i + ',\'descricao\',this.value)"/>' + badge + '</td>' +
+      '<td><input type="text" value="' + l.descricao.replace(/"/g, '&quot;') + '" onchange="VivrSync.setCampo(' + i + ',\'descricao\',this.value)"/></td>' +
       '<td><select onchange="VivrSync.setCampo(' + i + ',\'categoriaId\',this.value)">' + catOpts + '</select></td>' +
       '<td><select onchange="VivrSync.setCampo(' + i + ',\'responsavelId\',this.value)">' + respOpts + '</select></td>' +
       '<td><select onchange="VivrSync.setCampo(' + i + ',\'pagamentoId\',this.value)">' + pagOpts + '</select></td>' +
@@ -129,14 +127,12 @@ function renderRevisao() {
   }).join('');
 
   var selecionadas = linhas.filter(function (l) { return l.selecionado; });
-  var jaLancadas = linhas.filter(function (l) { return l.jaExiste; });
-  var possiveis = linhas.filter(function (l) { return l.possivelDup; });
+  var duplicadas = linhas.filter(function (l) { return l.jaExiste || l.possivelDup; });
   var total = selecionadas.reduce(function (s, l) { return s + l.valor; }, 0);
   document.getElementById('syncSummary').innerHTML =
     '<div>Novas selecionadas<strong>' + selecionadas.length + '</strong></div>' +
-    '<div>Possíveis duplicatas<strong>' + possiveis.length + '</strong></div>' +
     '<div>Total<strong>' + Utils.formatCurrency(total) + '</strong></div>' +
-    '<div>Já lançadas (ocultas)<strong>' + jaLancadas.length + '</strong></div>';
+    '<div>Duplicadas (não mostradas)<strong>' + duplicadas.length + '</strong></div>';
 }
 
 function toggle(i, checked) { linhas[i].selecionado = checked; renderRevisao(); }
