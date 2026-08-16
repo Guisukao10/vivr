@@ -1,7 +1,7 @@
 {
-  "name": "Vivr — Personal Life OS",
+  "name": "Vivr — Financeiro",
   "short_name": "Vivr",
-  "description": "Seu sistema operacional de vida — finanças, metas, saúde, nutrição e hábitos em um só lugar",
+  "description": "Controle financeiro do casal",
   "start_url": "/vivr/",
   "scope": "/vivr/",
   "display": "standalone",
@@ -21,28 +21,6 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Financeiro",
-      "url": "/vivr/app/financeiro/",
-      "description": "Controle financeiro"
-    },
-    {
-      "name": "Metas",
-      "url": "/vivr/app/metas/",
-      "description": "Metas & Objetivos"
-    },
-    {
-      "name": "Hábitos",
-      "url": "/vivr/app/habitos/",
-      "description": "Hábitos e streaks"
-    },
-    {
-      "name": "Saúde",
-      "url": "/vivr/app/saude/",
-      "description": "Treinos e bem-estar"
     }
   ]
 }

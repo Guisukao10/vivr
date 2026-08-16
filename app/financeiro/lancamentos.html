@@ -60,15 +60,7 @@
     <div class="vivr-logo">v</div>
     <span class="vivr-name">vi<span>vr</span></span>
   </a>
-  <div class="vivr-nav-links">
-    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
-    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
-    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
-    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
-    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
-    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
-    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
-  </div>
+  <div class="vivr-nav-links"></div>
 </nav>
 
 <div class="fin-subnav">
@@ -195,13 +187,11 @@
 </div>
 
 <script src="../../assets/supabase.js"></script>
-<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
 <script src="utils.js"></script>
 <script src="ui.js"></script>
 <script src="storage.js"></script>
 <script src="lancamentos.js"></script>
 <script>
-document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
 StorageService.initFinanceiro().then(function(){ LancamentosPage.init(); }).catch(function(e){
   document.getElementById('lancamentoForm').innerHTML = '<div class="panel" style="color:#B91C1C">⚠️ Não foi possível carregar agora ('+e.message+'). Tente recarregar a página.</div>';
 });

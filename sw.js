@@ -1,5 +1,5 @@
 /* ── Vivr — Service Worker ── */
-var CACHE = 'vivr-v2';
+var CACHE = 'vivr-v5';
 
 var SHELL = [
   '/vivr/',
@@ -8,39 +8,22 @@ var SHELL = [
   '/vivr/assets/shared.css',
   '/vivr/assets/supabase.js',
   '/vivr/assets/icons/icon.svg',
-  '/vivr/auth/login.html',
-  '/vivr/auth/register.html',
-  '/vivr/app/index.html',
   '/vivr/app/financeiro/',
   '/vivr/app/financeiro/index.html',
   '/vivr/app/financeiro/lancamentos.html',
   '/vivr/app/financeiro/cadastros.html',
   '/vivr/app/financeiro/planejador.html',
+  '/vivr/app/financeiro/importar.html',
   '/vivr/app/financeiro/analise.js',
   '/vivr/app/financeiro/lancamentos.js',
   '/vivr/app/financeiro/cadastros.js',
   '/vivr/app/financeiro/planejador.js',
+  '/vivr/app/financeiro/importar.js',
   '/vivr/app/financeiro/storage.js',
   '/vivr/app/financeiro/utils.js',
   '/vivr/app/financeiro/ui.js',
   '/vivr/app/financeiro/style.css',
-  '/vivr/app/financeiro/site-controle.css',
-  '/vivr/app/metas/',
-  '/vivr/app/metas/index.html',
-  '/vivr/app/metas/app.js',
-  '/vivr/app/metas/style.css',
-  '/vivr/app/habitos/',
-  '/vivr/app/habitos/index.html',
-  '/vivr/app/habitos/app.js',
-  '/vivr/app/habitos/style.css',
-  '/vivr/app/nutricao/',
-  '/vivr/app/nutricao/index.html',
-  '/vivr/app/nutricao/app.js',
-  '/vivr/app/nutricao/style.css',
-  '/vivr/app/saude/',
-  '/vivr/app/saude/index.html',
-  '/vivr/app/saude/app.js',
-  '/vivr/app/saude/style.css'
+  '/vivr/app/financeiro/site-controle.css'
 ];
 
 /* ── Install: cache app shell ── */

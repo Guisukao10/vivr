@@ -78,15 +78,7 @@
     <div class="vivr-logo">v</div>
     <span class="vivr-name">vi<span>vr</span></span>
   </a>
-  <div class="vivr-nav-links">
-    <a class="vivr-link" href="../">🏠 <span class="nl">Home</span></a>
-    <a class="vivr-link" href="../metas/">🎯 <span class="nl">Metas</span></a>
-    <a class="vivr-link" href="../nutricao/">🥗 <span class="nl">Nutrição</span></a>
-    <a class="vivr-link" href="../habitos/">✅ <span class="nl">Hábitos</span></a>
-    <a class="vivr-link" href="../saude/">❤️ <span class="nl">Saúde</span></a>
-    <a class="vivr-link" href="../grupo/">👥 <span class="nl">Grupo</span></a>
-    <a class="vivr-link logout" href="#" id="btnLogout">Sair</a>
-  </div>
+  <div class="vivr-nav-links"></div>
 </nav>
 
 <div class="fin-subnav">
@@ -102,6 +94,16 @@
     <h1>Financeiro</h1>
     <p>Visão geral dos seus ganhos e gastos</p>
   </header>
+
+  <details class="panel" style="margin-bottom:1rem">
+    <summary style="cursor:pointer;font-weight:700;font-size:.9rem">📊 Planilha (Excel) — preenchimento rápido</summary>
+    <p style="font-size:.8rem;color:var(--color-text-secondary);margin:8px 0 10px">
+      A planilha continua sendo onde vocês lançam rapidinho, como sempre fizeram. Depois de preencher, vá em
+      <a href="importar.html">Importar extrato</a> e clique em "Buscar novidades da planilha" pra trazer pro Vivr.
+    </p>
+    <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSHxO0A4QTL9fxCK5OglA3Jcat2gfH4nUP1zoYbMqCdBS-F3fHpZTQ4mL2VYww9CMMBzbXz24zGhmEc/pubhtml?widget=true&amp;headers=false"
+      style="width:100%;height:420px;border:1px solid var(--color-border);border-radius:8px"></iframe>
+  </details>
 
   <div class="panel" style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
     <label for="periodFilter" style="font-weight:bold">Período:</label>
@@ -138,13 +140,11 @@
 </div>
 
 <script src="../../assets/supabase.js"></script>
-<script>if(!requireAuth('../../auth/login.html')) throw '';</script>
 <script src="utils.js"></script>
 <script src="ui.js"></script>
 <script src="storage.js"></script>
 <script src="analise.js"></script>
 <script>
-document.getElementById('btnLogout').addEventListener('click', function(){ vivr.auth.signOut().then(function(){window.location.href='../../auth/login.html';}); });
 StorageService.initFinanceiro()
   .then(function(){ return StorageService.sincronizarProgressoMetas(); })
   .then(function(){ AnalisePage.init(); })

@@ -83,6 +83,25 @@ var vivr = (function(){
         return d;
       }); });
     },
+    // Troca o refresh_token guardado por um access_token novo, sem pedir nada de novo pra
+    // pessoa — chamado sozinho perto da expiração pra sessão nunca cair no meio do uso.
+    refresh: function(){
+      var raw = localStorage.getItem('sb-cckalvgublrqkacljymz-auth-token');
+      if(!raw) return Promise.resolve(null);
+      var s; try { s = JSON.parse(raw); } catch(e){ return Promise.resolve(null); }
+      if(!s||!s.refresh_token) return Promise.resolve(null);
+      return fetch(url+'/auth/v1/token?grant_type=refresh_token', {
+        method:'POST', headers:{'apikey':key,'Content-Type':'application/json'},
+        body: JSON.stringify({refresh_token:s.refresh_token})
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.error||!d.access_token){ localStorage.removeItem('sb-cckalvgublrqkacljymz-auth-token'); return null; }
+        _saveSession(d);
+        return d;
+      }).catch(function(){ return null; });
+    },
+    // Salva uma sessão já pronta (vinda de uma edge function, por exemplo) sem precisar
+    // de email/senha no cliente.
+    setSession: function(d){ if(d && d.access_token) _saveSession(d); },
     signOut: function(){
       var token = getToken();
       localStorage.removeItem('sb-cckalvgublrqkacljymz-auth-token');
@@ -199,3 +218,20 @@ function currentUser(){ return vivr.auth.getUser(); }
 
 /* ── Alias db = vivr for module compatibility ── */
 var db = vivr;
+
+/* ── Renovação silenciosa de sessão ──
+   Uso pessoal, sem tela de login visível: a sessão não pode simplesmente expirar no meio
+   do uso e mandar pedir o PIN de novo. Roda em toda página (esse arquivo é importado em
+   todas) e renova sozinho um pouco antes de vencer. */
+(function(){
+  function checarERenovar(){
+    var raw = localStorage.getItem('sb-cckalvgublrqkacljymz-auth-token');
+    if(!raw) return;
+    var s; try { s = JSON.parse(raw); } catch(e){ return; }
+    if(!s||!s.refresh_token||!s.expires_at) return;
+    var faltam = s.expires_at - Date.now()/1000;
+    if(faltam < 600) vivr.auth.refresh();
+  }
+  checarERenovar();
+  setInterval(checarERenovar, 5*60*1000);
+})();

@@ -209,6 +209,44 @@ function sugerirCategoriaPorTexto(texto, categorias) {
   return null;
 }
 
+function normalizarTexto(s){ return stripAccents(String(s||'')).toLowerCase().replace(/\s+/g,' ').trim(); }
+
+function diasEntre(dataA, dataB){
+  var a = parseLocalDate(dataA), b = parseLocalDate(dataB);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return Infinity;
+  return Math.round(Math.abs(a - b) / 86400000);
+}
+
+// Checagem central de duplicata — usada em toda identificação de lançamento (import de
+// extrato em texto/PDF e sincronização da planilha), pra nunca repetir o que já foi lançado.
+// 'exata'   → mesma data, valor e descrição — repetição certa, some da lista (não importa).
+// 'proxima' → valor e data pertinho (parcela, typo, mesma compra lançada 2x) — importa
+//             mas fica marcado pra pessoa decidir, não é escondido sozinho.
+function checarDuplicata(candidato, existentes, opts) {
+  opts = opts || {};
+  var tolValor = opts.tolValor != null ? opts.tolValor : 0.02;
+  var tolDias = opts.tolDias != null ? opts.tolDias : 6;
+  var descCand = normalizarTexto(candidato.descricao);
+  var valorCand = Number(candidato.valor);
+
+  var exata = existentes.find(function(e){
+    return e.data === candidato.data && Math.abs(Number(e.valor) - valorCand) < 0.005 &&
+      normalizarTexto(e.descricao) === descCand;
+  });
+  if (exata) return { nivel: 'exata', match: exata };
+
+  var proxima = existentes.find(function(e){
+    if (Math.abs(Number(e.valor) - valorCand) > tolValor) return false;
+    if (diasEntre(e.data, candidato.data) > tolDias) return false;
+    var descExist = normalizarTexto(e.descricao);
+    if (!descExist || !descCand) return false;
+    return descExist === descCand || descExist.indexOf(descCand) !== -1 || descCand.indexOf(descExist) !== -1;
+  });
+  if (proxima) return { nivel: 'proxima', match: proxima };
+
+  return null;
+}
+
 window.Utils = {
   formatCurrency,
   formatDate,
@@ -224,4 +262,6 @@ window.Utils = {
   sortByDate,
   normalizeEntry,
   sugerirCategoriaPorTexto,
+  normalizarTexto,
+  checarDuplicata,
 };
