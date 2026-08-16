@@ -114,10 +114,10 @@ function renderRevisao() {
     var pagOpts = pagamentos.map(function (p) {
       return '<option value="' + p.id + '"' + (p.id === l.pagamentoId ? ' selected' : '') + '>' + p.nome + '</option>';
     }).join('');
+    if (l.jaExiste) return ''; // já lançado exato — nem mostra, só polui a revisão
     var badge = '';
-    if (l.jaExiste) badge = ' <span class="sync-badge dup" title="Mesma data, valor e descrição de um lançamento já existente">já lançado</span>';
-    else if (l.possivelDup) badge = ' <span class="sync-badge warn" title="Parecido com: ' + (l.dupInfo || '').replace(/"/g, '&quot;') + '">possível duplicata</span>';
-    return '<tr' + (l.jaExiste ? ' class="sync-dup"' : '') + '>' +
+    if (l.possivelDup) badge = ' <span class="sync-badge warn" title="Parecido com: ' + (l.dupInfo || '').replace(/"/g, '&quot;') + '">possível duplicata</span>';
+    return '<tr>' +
       '<td><input type="checkbox" ' + (l.selecionado ? 'checked' : '') + ' onchange="VivrSync.toggle(' + i + ',this.checked)"/></td>' +
       '<td>' + Utils.formatDate(l.data) + '</td>' +
       '<td><input type="text" value="' + l.descricao.replace(/"/g, '&quot;') + '" onchange="VivrSync.setCampo(' + i + ',\'descricao\',this.value)"/>' + badge + '</td>' +
@@ -133,11 +133,10 @@ function renderRevisao() {
   var possiveis = linhas.filter(function (l) { return l.possivelDup; });
   var total = selecionadas.reduce(function (s, l) { return s + l.valor; }, 0);
   document.getElementById('syncSummary').innerHTML =
-    '<div>Linhas na planilha<strong>' + linhas.length + '</strong></div>' +
-    '<div>Já lançadas (puladas)<strong>' + jaLancadas.length + '</strong></div>' +
-    '<div>Possíveis duplicatas<strong>' + possiveis.length + '</strong></div>' +
     '<div>Novas selecionadas<strong>' + selecionadas.length + '</strong></div>' +
-    '<div>Total<strong>' + Utils.formatCurrency(total) + '</strong></div>';
+    '<div>Possíveis duplicatas<strong>' + possiveis.length + '</strong></div>' +
+    '<div>Total<strong>' + Utils.formatCurrency(total) + '</strong></div>' +
+    '<div>Já lançadas (ocultas)<strong>' + jaLancadas.length + '</strong></div>';
 }
 
 function toggle(i, checked) { linhas[i].selecionado = checked; renderRevisao(); }
