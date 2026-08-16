@@ -419,6 +419,87 @@ const AnalisePage = (function () {
     }).join('');
   }
 
+  function kpiBox(label, value, cls, sub) {
+    return '<div class="kpi-box"><div class="kpi-label">' + label + '</div><div class="kpi-value ' + (cls || '') + '">' + value + '</div>' +
+      (sub ? '<div class="kpi-sub">' + sub + '</div>' : '') + '</div>';
+  }
+
+  // Taxa de poupança (padrão de qualquer análise financeira pessoal: quanto sobra do
+  // que entra) e projeção de fim de mês no ritmo atual — respondem "estou indo bem?"
+  // e "vou estourar o orçamento?" antes do mês acabar, não depois.
+  function renderKpiStrip(totais, periodo) {
+    const el = document.getElementById('kpiStrip');
+    if (!el) return;
+    if (!totais || !totais.totalLancamentosPeriodo) { el.innerHTML = ''; return; }
+    const boxes = [];
+
+    if (totais.ganhos > 0) {
+      const taxa = (totais.ganhos - totais.gastos) / totais.ganhos * 100;
+      boxes.push(kpiBox('Taxa de poupança', taxa.toFixed(0) + '%', taxa >= 0 ? 'pos' : 'neg',
+        taxa >= 20 ? 'Ótimo — acima de 20%' : (taxa >= 0 ? 'Dá pra melhorar' : 'Gastando mais do que ganha')));
+    }
+
+    const atual = getCurrentMonthYear();
+    if (periodo === atual.comp) {
+      const hoje = new Date();
+      const diasNoMes = new Date(atual.ano, atual.mes, 0).getDate();
+      const diasElapsed = Math.max(1, Math.min(hoje.getDate(), diasNoMes));
+      const projecao = (totais.gastos / diasElapsed) * diasNoMes;
+      const mesKey = `${atual.ano}-${String(atual.mes).padStart(2, '0')}`;
+      const plano = (StorageService.getBudgetPlan() || []).filter((r) => r.month === mesKey).reduce((s, r) => s + Number(r.value || 0), 0);
+      const sub = plano
+        ? (projecao <= plano ? `dentro do orçamento (${Utils.formatCurrency(plano)})` : `${Utils.formatCurrency(projecao - plano)} acima do orçamento`)
+        : 'no ritmo atual de gastos';
+      boxes.push(kpiBox('Projeção do mês', Utils.formatCurrency(projecao), (plano && projecao > plano) ? 'neg' : 'pos', sub));
+    }
+
+    el.innerHTML = boxes.join('');
+  }
+
+  // Quanto do gasto já está "travado" (fixo) vs quanto ainda dá pra decidir (variável) —
+  // a pergunta clássica de quem quer saber onde tem margem real pra cortar.
+  function renderFixoVsVariavel(periodo) {
+    const el = document.getElementById('fixoVsVariavel');
+    if (!el) return;
+    const despesas = filterByPeriodo(getLancamentos(), periodo).filter((l) => l.tipo === 'despesa');
+    if (!despesas.length) { el.textContent = 'Sem gastos no período.'; return; }
+    let fixo = 0, variavel = 0;
+    despesas.forEach((l) => { if (l.fixoVariavel === 'fixo') fixo += Number(l.valor || 0); else variavel += Number(l.valor || 0); });
+    const total = fixo + variavel;
+    const pctFixo = total ? Math.round(fixo / total * 100) : 0;
+    const pctVar = 100 - pctFixo;
+    el.innerHTML = `
+      <div class="fv-bar">
+        ${pctFixo ? `<span class="fv-fixo" style="width:${pctFixo}%">${pctFixo}%</span>` : ''}
+        ${pctVar ? `<span class="fv-var" style="width:${pctVar}%">${pctVar}%</span>` : ''}
+      </div>
+      <div class="fv-legend">
+        <span><span class="fv-dot" style="background:#7C3AED"></span>Fixo · ${Utils.formatCurrency(fixo)}</span>
+        <span><span class="fv-dot" style="background:#D4D4D8"></span>Variável · ${Utils.formatCurrency(variavel)}</span>
+      </div>
+      <p style="font-size:.72rem;color:#888;margin-top:8px">${pctFixo >= 60
+        ? 'Maior parte do gasto já está comprometida — pouca margem pra cortar rápido.'
+        : 'Boa parte do gasto é variável — dá pra ajustar se precisar economizar.'}</p>`;
+  }
+
+  // Assinaturas e recorrentes somem na massa de lançamentos mensais — aqui aparecem
+  // juntas, com o total mensal comprometido, pra flagrar "assinatura fantasma".
+  function renderAssinaturas() {
+    const el = document.getElementById('assinaturas');
+    if (!el) return;
+    const recorrentes = getLancamentos().filter((l) => l.tipo === 'despesa' && l.recurring);
+    if (!recorrentes.length) { el.textContent = 'Nenhum lançamento recorrente cadastrado.'; return; }
+    const porDesc = {};
+    recorrentes.forEach((l) => {
+      const key = (l.descricao || '').toLowerCase().trim();
+      if (!porDesc[key] || l.data > porDesc[key].data) porDesc[key] = l;
+    });
+    const itens = Object.values(porDesc).sort((a, b) => b.valor - a.valor);
+    const total = itens.reduce((s, l) => s + Number(l.valor || 0), 0);
+    el.innerHTML = itens.map((l) => `<div class="sub-row"><span>${l.descricao}</span><strong>${Utils.formatCurrency(l.valor)}/mês</strong></div>`).join('') +
+      `<div class="sub-total">Total recorrente: <strong>${Utils.formatCurrency(total)}/mês</strong></div>`;
+  }
+
   function renderRecentAndTop(periodo) {
     const filtrados = filterByPeriodo(getLancamentos(), periodo);
     const ultimos = filtrados.slice().sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 5);
@@ -507,8 +588,8 @@ const AnalisePage = (function () {
     const visiveis = suspeitos.slice(0, 4);
     el.innerHTML = '<span class="rv-lbl">🔍 A revisar:</span>' +
       visiveis.map((l) =>
-        `<a class="rv-chip" href="lancamentos.html?buscar=${encodeURIComponent(l.descricao)}" title="Abrir em Lançamentos">` +
-        `${Utils.formatDate(l.data)} · ${l.descricao} · ${Utils.formatCurrency(l.valor)}</a>`).join('') +
+        `<span class="rv-chip" title="${(l.obs || l.observacao || '').replace(/"/g, '&quot;')}">` +
+        `${Utils.formatDate(l.data)} · ${l.descricao} · ${Utils.formatCurrency(l.valor)}</span>`).join('') +
       (suspeitos.length > visiveis.length ? `<span class="rv-mais">+ ${suspeitos.length - visiveis.length}</span>` : '');
   }
 
@@ -539,6 +620,9 @@ const AnalisePage = (function () {
     }
     renderBudgetAlerts(selectedPeriod);
     renderCards(totais, selectedPeriod, allLancamentos.length, filtered.length);
+    renderKpiStrip(totais, selectedPeriod);
+    renderFixoVsVariavel(selectedPeriod);
+    renderAssinaturas();
     renderCharts(selectedPeriod);
     renderGastosPorResponsavel(selectedPeriod);
     renderProximosCompromissos();

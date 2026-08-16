@@ -582,6 +582,7 @@ function renderInvestTab(){
   mediaInvest = Math.round(mediaInvest/50)*50;
 
   var slAp=document.getElementById('slAporte'), slTx=document.getElementById('slTaxa'), slAn=document.getElementById('slAnos');
+  var slInfl=document.getElementById('slInflacao');
   var patInp=document.getElementById('patInicial');
   if(!slAp) return;
 
@@ -594,17 +595,30 @@ function renderInvestTab(){
 
   function refresh(){
     var aporte=parseFloat(slAp.value), taxa=parseFloat(slTx.value), anos=parseInt(slAn.value,10);
+    var inflacaoAno = parseFloat(slInfl.value)||0;
     var pv = parseFloat(patInp.value)||0;
 
     document.getElementById('svAporte').textContent = brl(aporte);
     document.getElementById('svTaxa').textContent = taxa.toFixed(2).replace('.',',')+'%';
     document.getElementById('svAnos').textContent = anos+' ano'+(anos>1?'s':'');
+    document.getElementById('svInflacao').textContent = inflacaoAno.toFixed(1).replace('.',',')+'%';
 
     var rows10 = calcInvest(aporte,taxa,anos,pv);
     if(!rows10.length) return;
     var final = rows10[rows10.length-1];
     var taxaAnual = (Math.pow(1+taxa/100,12)-1)*100;
     var totalCapital = pv + final.totalInvestido;
+
+    // Retorno real: desconta a inflação do período pra mostrar o poder de compra de
+    // verdade, não só o número nominal (que engana em horizontes longos no Brasil).
+    var patrimonioReal = final.patrimonio / Math.pow(1+inflacaoAno/100, anos);
+
+    // Comparação com poupança (aproximação simplificada, ~0,5%/mês) — referência
+    // pra saber se a taxa escolhida vale o esforço de sair da poupança.
+    var TAXA_POUPANCA_MES = 0.5;
+    var poupRows = calcInvest(aporte, TAXA_POUPANCA_MES, anos, pv);
+    var patrimonioPoupanca = poupRows.length ? poupRows[poupRows.length-1].patrimonio : pv;
+    var ganhoVsPoupanca = final.patrimonio - patrimonioPoupanca;
 
     var pvCard = pv>0
       ? '<div class="inv-card hi"><div class="cl">Patrimônio Inicial</div><div class="cv">'+brl(pv)+'</div><div class="cs">Saldo já guardado incluído</div></div>'
@@ -615,7 +629,9 @@ function renderInvestTab(){
       pvCard+
       '<div class="inv-card hi"><div class="cl">Patrimônio em '+anos+' ano'+(anos>1?'s':'')+'</div><div class="cv">'+brl(final.patrimonio)+'</div><div class="cs">'+brl(totalCapital)+' aportados</div></div>'+
       '<div class="inv-card hi"><div class="cl">Juros Acumulados</div><div class="cv">'+brl(final.juros)+'</div><div class="cs">'+pct(final.juros/final.patrimonio*100,1)+' do patrimônio</div></div>'+
-      '<div class="inv-card"><div class="cl">Multiplicador</div><div class="cv">'+(final.patrimonio/Math.max(totalCapital,1)).toFixed(2).replace('.',',')+'x</div><div class="cs">Retorno sobre capital total</div></div>';
+      '<div class="inv-card"><div class="cl">Multiplicador</div><div class="cv">'+(final.patrimonio/Math.max(totalCapital,1)).toFixed(2).replace('.',',')+'x</div><div class="cs">Retorno sobre capital total</div></div>'+
+      '<div class="inv-card"><div class="cl">Poder de Compra Real</div><div class="cv">'+brl(patrimonioReal)+'</div><div class="cs">descontada inflação de '+inflacaoAno.toFixed(1).replace('.',',')+'%/ano</div></div>'+
+      '<div class="inv-card '+(ganhoVsPoupanca>=0?'hi':'')+'"><div class="cl">vs. Poupança (aprox.)</div><div class="cv" style="color:'+(ganhoVsPoupanca>=0?'#15803D':'#B91C1C')+'">'+(ganhoVsPoupanca>=0?'+':'')+brl(ganhoVsPoupanca)+'</div><div class="cs">poupança renderia '+brl(patrimonioPoupanca)+'</div></div>';
 
     var tbl = '<thead><tr><th>Ano</th>'+(pv>0?'<th>Pat. Inicial</th>':'')+
       '<th>Aportes Acum.</th><th>Juros Acum.</th><th>Patrimônio</th><th>Rendim. Anual</th><th>% Juros</th></tr></thead><tbody>';
@@ -667,7 +683,7 @@ function renderInvestTab(){
     });
   }
 
-  slAp.oninput = slTx.oninput = slAn.oninput = refresh;
+  slAp.oninput = slTx.oninput = slAn.oninput = slInfl.oninput = refresh;
   patInp.oninput = refresh;
   refresh();
 }

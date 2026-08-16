@@ -1,5 +1,5 @@
 /* ── Vivr — Service Worker ── */
-var CACHE = 'vivr-v5';
+var CACHE = 'vivr-v6';
 
 var SHELL = [
   '/vivr/',
@@ -10,15 +10,10 @@ var SHELL = [
   '/vivr/assets/icons/icon.svg',
   '/vivr/app/financeiro/',
   '/vivr/app/financeiro/index.html',
-  '/vivr/app/financeiro/lancamentos.html',
-  '/vivr/app/financeiro/cadastros.html',
   '/vivr/app/financeiro/planejador.html',
-  '/vivr/app/financeiro/importar.html',
   '/vivr/app/financeiro/analise.js',
-  '/vivr/app/financeiro/lancamentos.js',
-  '/vivr/app/financeiro/cadastros.js',
   '/vivr/app/financeiro/planejador.js',
-  '/vivr/app/financeiro/importar.js',
+  '/vivr/app/financeiro/sync.js',
   '/vivr/app/financeiro/storage.js',
   '/vivr/app/financeiro/utils.js',
   '/vivr/app/financeiro/ui.js',

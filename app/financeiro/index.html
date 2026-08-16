@@ -70,6 +70,40 @@
 .cat-bar-top .cat-name{font-weight:600}
 .cat-bar-track{background:var(--color-gray-100);border-radius:5px;height:7px;overflow:hidden}
 .cat-bar-fill{height:100%;border-radius:5px;background:var(--color-primary)}
+
+/* Sincronização com a planilha */
+.sync-box p{font-size:.8rem;color:var(--color-text-secondary);margin:8px 0 12px}
+.sync-status{display:none;margin:10px 0;padding:10px 14px;border-radius:9px;font-size:.8rem;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+.sync-status.err{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.sync-summary{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0}
+.sync-summary div{background:var(--color-gray-50);border-radius:8px;padding:8px 14px;font-size:.78rem}
+.sync-summary strong{display:block;font-size:1rem}
+.sync-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.sync-table th,.sync-table td{padding:6px 8px;border-bottom:1px solid var(--color-border);text-align:left}
+.sync-table input,.sync-table select{width:100%;padding:5px 6px;border:1px solid var(--color-border);border-radius:5px;font-family:inherit;font-size:.76rem}
+.sync-table input[type="checkbox"]{width:auto}
+.sync-badge.dup{font-size:.62rem;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:8px;padding:1px 6px;white-space:nowrap}
+.sync-badge.warn{font-size:.62rem;font-weight:700;background:#FFEDD5;color:#9A3412;border-radius:8px;padding:1px 6px;white-space:nowrap;cursor:help}
+tr.sync-dup td{background:#FFFDF5}
+
+/* KPIs novos */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}
+.kpi-box{background:#fff;border:1px solid var(--color-border);border-radius:10px;padding:12px 14px}
+.kpi-label{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#A1A1AA;margin-bottom:4px}
+.kpi-value{font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+.kpi-value.pos{color:#15803D}
+.kpi-value.neg{color:#B91C1C}
+.kpi-sub{font-size:.7rem;color:#888;margin-top:2px}
+.fv-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:8px 0}
+.fv-bar span{display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:#fff}
+.fv-fixo{background:#7C3AED}
+.fv-var{background:#D4D4D8;color:#3F3F46!important}
+.fv-legend{display:flex;gap:14px;font-size:.72rem;color:#666}
+.fv-legend span{display:flex;align-items:center;gap:5px}
+.fv-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sub-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--color-border);font-size:.78rem}
+.sub-row:last-child{border-bottom:none}
+.sub-total{font-size:.78rem;color:#888;margin-top:8px;padding-top:8px;border-top:1px dashed #eee}
 </style>
 </head>
 <body>
@@ -83,10 +117,7 @@
 
 <div class="fin-subnav">
   <a href="index.html" class="on">📊 Análise</a>
-  <a href="lancamentos.html">✍️ Lançamentos</a>
-  <a href="cadastros.html">🗂️ Cadastros</a>
   <a href="planejador.html">📋 Planejador</a>
-  <a href="importar.html">📥 Importar extrato</a>
 </div>
 
 <div class="content-area">
@@ -95,15 +126,31 @@
     <p>Visão geral dos seus ganhos e gastos</p>
   </header>
 
-  <details class="panel" style="margin-bottom:1rem">
-    <summary style="cursor:pointer;font-weight:700;font-size:.9rem">📊 Planilha (Excel) — preenchimento rápido</summary>
-    <p style="font-size:.8rem;color:var(--color-text-secondary);margin:8px 0 10px">
-      A planilha continua sendo onde vocês lançam rapidinho, como sempre fizeram. Depois de preencher, vá em
-      <a href="importar.html">Importar extrato</a> e clique em "Buscar novidades da planilha" pra trazer pro Vivr.
-    </p>
-    <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSHxO0A4QTL9fxCK5OglA3Jcat2gfH4nUP1zoYbMqCdBS-F3fHpZTQ4mL2VYww9CMMBzbXz24zGhmEc/pubhtml?widget=true&amp;headers=false"
-      style="width:100%;height:420px;border:1px solid var(--color-border);border-radius:8px"></iframe>
-  </details>
+  <div class="panel sync-box" style="margin-bottom:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div>
+        <strong style="font-size:.9rem">📊 Planilha (Excel)</strong>
+        <p style="margin:2px 0 0">Continuem lançando rapidinho na planilha de sempre — aqui é só trazer pro Vivr.</p>
+      </div>
+      <button class="btn btn-primary" onclick="VivrSync.sincronizar()">🔄 Sincronizar planilha</button>
+    </div>
+    <div class="sync-status" id="syncStatus"></div>
+    <div id="syncRevisao" style="display:none">
+      <div class="sync-summary" id="syncSummary"></div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+        <table class="sync-table">
+          <thead><tr><th></th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Responsável</th><th>Pagamento</th><th>Valor</th></tr></thead>
+          <tbody id="syncCorpo"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary" id="syncBtnImportar" style="margin-top:12px" onclick="VivrSync.importar()">Importar selecionados</button>
+    </div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:.78rem;color:var(--color-text-secondary)">Ver a planilha</summary>
+      <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSHxO0A4QTL9fxCK5OglA3Jcat2gfH4nUP1zoYbMqCdBS-F3fHpZTQ4mL2VYww9CMMBzbXz24zGhmEc/pubhtml?widget=true&amp;headers=false"
+        style="width:100%;height:380px;border:1px solid var(--color-border);border-radius:8px;margin-top:8px"></iframe>
+    </details>
+  </div>
 
   <div class="panel" style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
     <label for="periodFilter" style="font-weight:bold">Período:</label>
@@ -117,6 +164,13 @@
   <div id="revisaoAlerts" style="display:none"></div>
 
   <div id="summaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem"></div>
+
+  <div class="kpi-strip" id="kpiStrip"></div>
+
+  <div class="fin-compact-grid">
+    <div class="panel"><h3>Fixo × Variável</h3><div id="fixoVsVariavel"></div></div>
+    <div class="panel"><h3>🔁 Assinaturas &amp; recorrentes</h3><div id="assinaturas"></div></div>
+  </div>
 
   <div class="panel" id="metasFinBox" style="display:none;margin-bottom:1rem">
     <h3>🎯 Metas que dependem de dinheiro</h3>
@@ -143,6 +197,7 @@
 <script src="utils.js"></script>
 <script src="ui.js"></script>
 <script src="storage.js"></script>
+<script src="sync.js"></script>
 <script src="analise.js"></script>
 <script>
 StorageService.initFinanceiro()

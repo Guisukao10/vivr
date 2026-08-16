@@ -20,10 +20,7 @@
 
 <div class="fin-subnav">
   <a href="index.html">📊 Análise</a>
-  <a href="lancamentos.html">✍️ Lançamentos</a>
-  <a href="cadastros.html">🗂️ Cadastros</a>
   <a href="planejador.html" class="on">📋 Planejador</a>
-  <a href="importar.html">📥 Importar extrato</a>
 </div>
 
 <div class="wrap">
@@ -81,6 +78,9 @@
         <label style="margin-left:12px">Horizonte</label>
         <input type="range" id="slAnos" min="1" max="10" step="1" value="10"/>
         <span class="sv" id="svAnos">10 anos</span>
+        <label style="margin-left:12px">Inflação/ano</label>
+        <input type="range" id="slInflacao" min="0" max="10" step="0.5" value="4.5"/>
+        <span class="sv" id="svInflacao">4,5%</span>
       </div>
       <div class="inv-kpis" id="invKpis"></div>
       <div class="box">
