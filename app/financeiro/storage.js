@@ -36,7 +36,7 @@ function initFinanceiro(){
     db.from(TABLES.responsaveis).select('*'),
     db.from(TABLES.status).select('*'),
     db.from(TABLES.tiposPagamento).select('*'),
-    db.from(TABLES.lancamentos).order('data',{ascending:false}).select('*'),
+    db.from(TABLES.lancamentos).order('data',{ascending:false}).selectAll('*'),
     db.from('budget_plan').select('*'),
     db.from('budget_income').select('*'),
     db.from('goals').select('id,title,area,progress,target,hz')

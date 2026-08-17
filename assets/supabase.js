@@ -152,6 +152,26 @@ var vivr = (function(){
         if(_lim) qs+='&limit='+_lim;
         return req('GET',_t+'?'+qs);
       },
+      selectAll:function(cols){
+        var qs='select='+(cols||'*');
+        if(_f.length) qs+='&'+_f.join('&');
+        if(_ord) qs+='&order='+_ord;
+        var page=1000, all=[];
+        function pull(offset){
+          return fetch(url+'/rest/v1/'+_t+'?'+qs,{
+            method:'GET',
+            headers: headers({'Range-Unit':'items','Range':offset+'-'+(offset+page-1)})
+          }).then(function(r){
+            if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+            return r.json();
+          }).then(function(rows){
+            all = all.concat(rows);
+            if(rows.length < page) return all;
+            return pull(offset+page);
+          });
+        }
+        return pull(0);
+      },
       insert:function(data){ return req('POST',_t,Array.isArray(data)?data:[data]); },
       update:function(data){
         var qs=_f.length?'?'+_f.join('&'):'';
