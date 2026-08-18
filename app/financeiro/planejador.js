@@ -265,19 +265,12 @@ function renderAcompanhamento(mesEscolhido){
   var pctUsed = totalPlan>0 ? totalGasto/totalPlan*100 : 0;
   var restCls = totalRest<0?'over':pctUsed>=80?'warn':'ok';
 
-  var curYear = parseInt(curMonth.split('-')[0],10), curMon = parseInt(curMonth.split('-')[1],10)-1;
-  var daysInMonth = new Date(curYear, curMon+1, 0).getDate();
-  var daysPassed = isMesAtual ? now.getDate() : daysInMonth; // mês fechado = 100% decorrido
-  var daysPct = daysPassed/daysInMonth*100;
-  var expectedSpend = totalPlan * daysPassed/daysInMonth;
-  var onTrack = totalGasto <= expectedSpend * 1.05;
-
+  // Comparação por mês inteiro (planejado vs. gasto do mês), sem projeção por dia —
+  // "quanto já usei do orçamento do mês", não "estou no ritmo pra hoje".
   document.getElementById('acpResume').innerHTML =
     '<div class="acp-card"><div class="ac-lbl">Orçamento do Mês</div><div class="ac-val">'+brl(totalPlan)+'</div><div class="ac-sub">planejado para '+monthLabel(curMonth)+'</div></div>'+
-    '<div class="acp-card"><div class="ac-lbl">Gasto até agora</div><div class="ac-val">'+brl(totalGasto)+'</div><div class="ac-sub">'+daysPassed+' de '+daysInMonth+' dias ('+pct(daysPct,0)+')</div></div>'+
-    '<div class="acp-card '+restCls+'"><div class="ac-lbl">Saldo Restante</div><div class="ac-val">'+brl(totalRest)+'</div><div class="ac-sub">'+(totalRest>=0?'disponível para gastar':'acima do orçamento')+'</div></div>'+
-    '<div class="acp-card '+(onTrack?'ok':'warn')+'"><div class="ac-lbl">Ritmo de Gasto</div><div class="ac-val">'+pct(pctUsed,1)+'</div><div class="ac-sub">'+(onTrack?'✓ dentro do ritmo esperado':'⚠ acima do esperado para hoje')+'</div></div>'+
-    '<div class="acp-card"><div class="ac-lbl">Esperado hoje</div><div class="ac-val" style="font-size:.9rem">'+brl(expectedSpend)+'</div><div class="ac-sub">com base no dia '+daysPassed+'/'+daysInMonth+'</div></div>';
+    '<div class="acp-card"><div class="ac-lbl">Gasto no Mês</div><div class="ac-val">'+brl(totalGasto)+'</div><div class="ac-sub">'+pct(pctUsed,0)+' do orçamento usado</div></div>'+
+    '<div class="acp-card '+restCls+'"><div class="ac-lbl">Saldo Restante</div><div class="ac-val">'+brl(totalRest)+'</div><div class="ac-sub">'+(totalRest>=0?'disponível para o mês':'acima do orçamento do mês')+'</div></div>';
 
   var buckets = BUCKETS;
   var bColor = BUCKET_COLOR;
@@ -640,6 +633,33 @@ function calcInvest(aporte, taxaMes, anos, patrimonioInicial){
   return rows;
 }
 
+/* Perfis de investimento — referência de taxa mensal típica pra cada tipo, editável
+   no slider depois de escolher (não é garantia de retorno, é ponto de partida). */
+var INVEST_PRESETS = [
+  {id:'poup', lbl:'💰 Poupança', taxaMes:0.5, sub:'~6,2% a.a. · baixo risco'},
+  {id:'cdb', lbl:'🏦 CDB / Tesouro Selic', taxaMes:0.85, sub:'~100% CDI · baixo risco'},
+  {id:'multi', lbl:'📊 Fundos Multimercado', taxaMes:1.0, sub:'risco moderado'},
+  {id:'acoes', lbl:'📈 Ações / Renda Variável', taxaMes:1.3, sub:'alto risco · retorno não garantido'}
+];
+
+var META_PRESETS = [
+  {lbl:'🏠 Entrada de casa', nome:'Entrada da casa'},
+  {lbl:'🚗 Carro', nome:'Carro'},
+  {lbl:'✈️ Viagem', nome:'Viagem dos sonhos'},
+  {lbl:'🎓 Educação', nome:'Educação'}
+];
+
+/* Quantos meses até o patrimônio (com aporte mensal e taxa compostos) atingir o alvo. */
+function calcMesesParaMeta(pv, aporte, taxaMesPct, alvo){
+  var r = taxaMesPct/100, pat = pv;
+  if(pat>=alvo) return 0;
+  for(var m=1; m<=600; m++){
+    pat = pat*(1+r)+aporte;
+    if(pat>=alvo) return m;
+  }
+  return null; // não atinge em 50 anos com esse aporte/taxa
+}
+
 function renderInvestTab(){
   var investRows = allGastos.filter(function(r){
     if(!r.date) return false;
@@ -665,6 +685,68 @@ function renderInvestTab(){
   // começar do zero — só na primeira vez que o campo aparece, sem sobrescrever edição.
   if(!patInp.dataset.touched && (patInp.value===''||parseFloat(patInp.value)===0) && _reservaGuardadoTotal>0){
     patInp.value = _reservaGuardadoTotal;
+  }
+
+  var presetsEl = document.getElementById('invPresets');
+  if(presetsEl && !presetsEl.dataset.init){
+    presetsEl.innerHTML = INVEST_PRESETS.map(function(p){
+      return '<button type="button" class="inv-preset-btn" data-preset="'+p.id+'" data-taxa="'+p.taxaMes+'">'+
+        '<span class="ipb-lbl">'+p.lbl+'</span><span class="ipb-sub">'+p.sub+'</span></button>';
+    }).join('');
+    presetsEl.dataset.init = '1';
+    presetsEl.addEventListener('click', function(ev){
+      var btn = ev.target.closest('[data-preset]');
+      if(!btn) return;
+      slTx.value = btn.dataset.taxa;
+      presetsEl.querySelectorAll('.inv-preset-btn').forEach(function(b){ b.classList.toggle('on', b===btn); });
+      refresh();
+    });
+  }
+
+  var metaPresetsEl = document.getElementById('metaPresets');
+  if(metaPresetsEl && !metaPresetsEl.dataset.init){
+    metaPresetsEl.innerHTML = META_PRESETS.map(function(p){
+      return '<button type="button" class="inv-preset-btn" data-meta-nome="'+p.nome+'"><span class="ipb-lbl">'+p.lbl+'</span></button>';
+    }).join('');
+    metaPresetsEl.dataset.init = '1';
+    metaPresetsEl.addEventListener('click', function(ev){
+      var btn = ev.target.closest('[data-meta-nome]');
+      if(!btn) return;
+      document.getElementById('metaNome').value = btn.dataset.metaNome;
+      metaPresetsEl.querySelectorAll('.inv-preset-btn').forEach(function(b){ b.classList.toggle('on', b===btn); });
+      document.getElementById('metaValor').focus();
+      renderMetaResultado();
+    });
+  }
+
+  function renderMetaResultado(){
+    var el = document.getElementById('metaResultado');
+    if(!el) return;
+    var nome = (document.getElementById('metaNome').value||'').trim();
+    var alvo = parseFloat(document.getElementById('metaValor').value);
+    if(!nome || !alvo || alvo<=0){ el.innerHTML=''; return; }
+    var aporte=parseFloat(slAp.value)||0, taxa=parseFloat(slTx.value)||0, pv=parseFloat(patInp.value)||0;
+    var meses = calcMesesParaMeta(pv, aporte, taxa, alvo);
+    if(meses===null){
+      el.innerHTML = '<div class="acp-card over"><div class="ac-lbl">🎯 '+nome+' — '+brl(alvo)+'</div>'+
+        '<div class="ac-val" style="font-size:.95rem">Não atinge em 50 anos</div>'+
+        '<div class="ac-sub">aumente o aporte mensal ou escolha um perfil de investimento com taxa maior</div></div>';
+      return;
+    }
+    var anosQ = Math.floor(meses/12), restM = meses%12;
+    var quando = meses===0
+      ? 'você já tem esse valor guardado'
+      : (anosQ>0 ? anosQ+' ano'+(anosQ>1?'s':'')+(restM>0?' e '+restM+' mês'+(restM>1?'es':''):'') : restM+' mês'+(restM>1?'es':''));
+    var dataAlvo = new Date(); dataAlvo.setMonth(dataAlvo.getMonth()+meses);
+    el.innerHTML = '<div class="acp-card ok"><div class="ac-lbl">🎯 '+nome+' — '+brl(alvo)+'</div>'+
+      '<div class="ac-val" style="font-size:1.1rem">'+quando+'</div>'+
+      '<div class="ac-sub">'+(meses===0?'':'por volta de '+dataAlvo.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})+', mantendo esse aporte e taxa')+'</div></div>';
+  }
+  var metaNomeEl = document.getElementById('metaNome'), metaValorEl = document.getElementById('metaValor');
+  if(metaNomeEl && !metaNomeEl.dataset.init){
+    metaNomeEl.addEventListener('input', renderMetaResultado);
+    metaValorEl.addEventListener('input', renderMetaResultado);
+    metaNomeEl.dataset.init = '1';
   }
 
   function refresh(){
@@ -760,6 +842,7 @@ function renderInvestTab(){
           y:{grid:{color:'#f0f0f0'},ticks:{font:{family:'Inter',size:10},color:'#bbb',callback:function(v){return 'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v);}}} }
       }
     });
+    renderMetaResultado();
   }
 
   slAp.oninput = slTx.oninput = slAn.oninput = slInfl.oninput = refresh;
