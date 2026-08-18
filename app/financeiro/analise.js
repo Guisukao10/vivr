@@ -483,21 +483,165 @@ const AnalisePage = (function () {
   }
 
   // Assinaturas e recorrentes somem na massa de lançamentos mensais — aqui aparecem
-  // juntas, com o total mensal comprometido, pra flagrar "assinatura fantasma".
+  // juntas (detectadas automaticamente + cadastradas à mão), com status de pago/pendente
+  // do mês corrente, pra flagrar "assinatura fantasma" e cobrança esquecida.
+  function formRecorrenteHtml() {
+    const categorias = StorageService.getCategorias().filter((c) => c.tipo === 'despesa');
+    const responsaveis = StorageService.getResponsaveis();
+    const catOpts = categorias.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
+    const respOpts = '<option value="">—</option>' + responsaveis.map((r) => `<option value="${r.id}">${r.nome}</option>`).join('');
+    return `<details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:.76rem;color:var(--color-text-secondary)">+ Adicionar recorrente</summary>
+      <div style="display:grid;gap:6px;margin-top:8px">
+        <input type="text" id="recNome" placeholder="Nome (ex: Netflix, Academia)" style="padding:6px 8px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem"/>
+        <div style="display:flex;gap:6px">
+          <input type="number" step="0.01" id="recValor" placeholder="Valor esperado" style="flex:1;padding:6px 8px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem"/>
+          <input type="number" min="1" max="31" id="recDia" placeholder="Dia venc." style="width:90px;padding:6px 8px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem"/>
+        </div>
+        <select id="recCategoria" style="padding:6px 8px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem"><option value="">Categoria (opcional)</option>${catOpts}</select>
+        <select id="recResponsavel" style="padding:6px 8px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem">${respOpts}</select>
+        <button class="btn btn-primary" type="button" style="font-size:.78rem" onclick="AnalisePage.addRecorrente()">Adicionar</button>
+      </div>
+    </details>`;
+  }
+
   function renderAssinaturas() {
     const el = document.getElementById('assinaturas');
     if (!el) return;
-    const recorrentes = getLancamentos().filter((l) => l.tipo === 'despesa' && l.recurring);
-    if (!recorrentes.length) { el.textContent = 'Nenhum lançamento recorrente cadastrado.'; return; }
-    const porDesc = {};
-    recorrentes.forEach((l) => {
+    const { comp } = getCurrentMonthYear();
+
+    const manuais = (StorageService.getRecorrentes() || []).filter((r) => r.ativo !== false);
+    const nomesManuais = new Set(manuais.map((r) => (r.nome || '').toLowerCase().trim()));
+
+    const autoDetectados = getLancamentos().filter((l) => l.tipo === 'despesa' && l.recurring);
+    const porDescAuto = {};
+    autoDetectados.forEach((l) => {
       const key = (l.descricao || '').toLowerCase().trim();
-      if (!porDesc[key] || l.data > porDesc[key].data) porDesc[key] = l;
+      if (!porDescAuto[key] || l.data > porDescAuto[key].data) porDescAuto[key] = l;
     });
-    const itens = Object.values(porDesc).sort((a, b) => b.valor - a.valor);
-    const total = itens.reduce((s, l) => s + Number(l.valor || 0), 0);
-    el.innerHTML = itens.map((l) => `<div class="sub-row"><span>${l.descricao}</span><strong>${Utils.formatCurrency(l.valor)}/mês</strong></div>`).join('') +
-      `<div class="sub-total">Total recorrente: <strong>${Utils.formatCurrency(total)}/mês</strong></div>`;
+    const itensAuto = Object.values(porDescAuto)
+      .filter((l) => !nomesManuais.has((l.descricao || '').toLowerCase().trim()))
+      .map((l) => ({ origem: 'auto', id: null, nome: l.descricao, valorEsperado: Number(l.valor || 0), categoriaId: l.categoriaId }));
+    const itensManuais = manuais.map((r) => ({
+      origem: 'manual', id: r.id, nome: r.nome, valorEsperado: Number(r.valor_esperado || 0), categoriaId: r.categoria_id
+    }));
+    const itens = itensManuais.concat(itensAuto).sort((a, b) => b.valorEsperado - a.valorEsperado);
+
+    if (!itens.length) {
+      el.innerHTML = '<p style="font-size:.8rem;color:#888">Nenhuma assinatura ou recorrente cadastrado ainda.</p>' + formRecorrenteHtml();
+      return;
+    }
+
+    const lancamentosMes = getLancamentos().filter((l) => l.tipo === 'despesa' && Utils.calculateCompetencia(l.data) === comp);
+    const total = itens.reduce((s, it) => s + it.valorEsperado, 0);
+
+    el.innerHTML = itens.map((it) => {
+      const nomeNorm = (it.nome || '').toLowerCase().trim();
+      const pago = lancamentosMes.find((l) => {
+        const d = (l.descricao || '').toLowerCase().trim();
+        const matchNome = d && nomeNorm && (d === nomeNorm || d.indexOf(nomeNorm) !== -1 || nomeNorm.indexOf(d) !== -1);
+        const matchCat = !it.categoriaId || l.categoriaId === it.categoriaId;
+        return matchNome && matchCat;
+      });
+      const statusHtml = pago
+        ? `<span style="color:#15803D;font-size:.66rem;font-weight:700;margin-left:6px">✓ pago ${Utils.formatDate(pago.data)}</span>`
+        : `<span style="color:#B91C1C;font-size:.66rem;font-weight:700;margin-left:6px">pendente este mês</span>`;
+      const removerHtml = it.origem === 'manual'
+        ? `<button type="button" title="Remover" onclick="AnalisePage.removeRecorrente('${it.id}')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:.8rem;margin-left:6px">✕</button>`
+        : '';
+      return `<div class="sub-row"><span>${it.nome}${statusHtml}</span><span><strong>${Utils.formatCurrency(it.valorEsperado)}/mês</strong>${removerHtml}</span></div>`;
+    }).join('') +
+      `<div class="sub-total">Total recorrente: <strong>${Utils.formatCurrency(total)}/mês</strong></div>` +
+      formRecorrenteHtml();
+  }
+
+  function addRecorrente() {
+    const nomeEl = document.getElementById('recNome');
+    const nome = nomeEl ? nomeEl.value.trim() : '';
+    if (!nome) { alert('Dá um nome pro recorrente.'); return; }
+    const valor = parseFloat(document.getElementById('recValor').value);
+    const dia = parseInt(document.getElementById('recDia').value, 10);
+    const categoriaId = document.getElementById('recCategoria').value || null;
+    const responsavelId = document.getElementById('recResponsavel').value || null;
+    StorageService.addRecorrente({
+      nome: nome,
+      valorEsperado: isNaN(valor) ? null : valor,
+      diaVenc: isNaN(dia) ? null : dia,
+      categoriaId: categoriaId,
+      responsavelId: responsavelId
+    }).then(() => renderAssinaturas()).catch((e) => alert('Erro ao adicionar: ' + e.message));
+  }
+
+  function removeRecorrente(id) {
+    if (!confirm('Remover esse recorrente da lista?')) return;
+    StorageService.removeRecorrente(id).then(() => renderAssinaturas()).catch((e) => alert('Erro ao remover: ' + e.message));
+  }
+
+  // Guardado/reserva vem de uma aba própria da planilha (alimentada à mão pelo casal),
+  // não dos lançamentos — por isso é buscada à parte, direto do CSV ao vivo.
+  const RESERVA_CSV_URL = 'https://docs.google.com/spreadsheets/d/1PnUe5-lId9eep3jb0AqOczUdCJHWtXQd6CEcLrcYN6I/export?format=csv&gid=1823976397';
+  const META_RESERVA_2026 = 50000;
+
+  function parseValorBR(s) {
+    const c = String(s || '').replace(/"/g, '').replace(/R\$/gi, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+    const v = parseFloat(c);
+    return isNaN(v) ? 0 : v;
+  }
+
+  // CSV parser que respeita aspas — necessário porque o valor em R$ tem vírgula
+  // decimal e vem entre aspas ("R$ 6.498,04"), um split(',') ingênuo cortaria no meio.
+  function parseCSVSimples(texto) {
+    const linhas = [];
+    let linha = [], campo = '', aspas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (aspas) {
+        if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else aspas = false; }
+        else campo += c;
+      } else if (c === '"') aspas = true;
+      else if (c === ',') { linha.push(campo); campo = ''; }
+      else if (c === '\r') { /* ignora */ }
+      else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+      else campo += c;
+    }
+    if (campo.length || linha.length) { linha.push(campo); linhas.push(linha); }
+    return linhas.filter((l) => l.some((c) => c.trim()));
+  }
+
+  function renderReserva() {
+    const el = document.getElementById('reservaBox');
+    if (!el) return;
+    fetch(RESERVA_CSV_URL).then((r) => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then((texto) => {
+      const linhas = parseCSVSimples(texto);
+      const porPessoa = {};
+      linhas.slice(1).forEach((cols) => {
+        if (cols.length < 2) return;
+        const nome = (cols[0] || '').replace(/"/g, '').trim();
+        if (!nome) return;
+        porPessoa[nome] = parseValorBR(cols[1]);
+      });
+      const total = Object.values(porPessoa).reduce((s, v) => s + v, 0);
+      const pct = Math.max(0, Math.min(100, Math.round((total / META_RESERVA_2026) * 100)));
+      const breakdown = Object.entries(porPessoa)
+        .map(([nome, v]) => `<div>${nome}<strong>${Utils.formatCurrency(v)}</strong></div>`).join('');
+      el.innerHTML =
+        `<div class="fin-goal-row">
+          <span class="fin-goal-name">Reserva 2026</span>
+          <div class="fin-goal-track"><div class="fin-goal-fill" style="width:${pct}%"></div></div>
+          <span class="fin-goal-pct">${pct}%</span>
+        </div>
+        <div class="fin-hero-breakdown" style="margin-top:10px">
+          <div>Guardado hoje<strong>${Utils.formatCurrency(total)}</strong></div>
+          <div>Meta 2026<strong>${Utils.formatCurrency(META_RESERVA_2026)}</strong></div>
+          <div>Falta<strong>${Utils.formatCurrency(Math.max(0, META_RESERVA_2026 - total))}</strong></div>
+        </div>
+        <div class="fin-hero-breakdown" style="margin-top:6px">${breakdown}</div>`;
+    }).catch(() => {
+      el.innerHTML = '<p style="font-size:.78rem;color:#B91C1C">Não consegui buscar o valor guardado agora.</p>';
+    });
   }
 
   function renderRecentAndTop(periodo) {
@@ -638,13 +782,14 @@ const AnalisePage = (function () {
     try {
       setupPeriodFilter();
       renderByPeriodo();
+      renderReserva();
     } catch (e) {
       const cards = document.getElementById('summaryCards');
       if (cards) cards.innerHTML = `<div class="panel" style="grid-column:1/-1;color:var(--color-danger)">⚠️ Erro ao montar a tela: ${e.message}</div>`;
     }
   }
 
-  return { init };
+  return { init, addRecorrente, removeRecorrente };
 })();
 
 window.AnalisePage = AnalisePage;

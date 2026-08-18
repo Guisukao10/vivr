@@ -16,7 +16,8 @@ var _cache = {
   lancamentos: [],
   budgetPlan: [],
   budgetIncome: null, // {id, value} ou null
-  goals: []
+  goals: [],
+  recorrentes: []
 };
 
 var TABLES = {
@@ -25,7 +26,8 @@ var TABLES = {
   responsaveis: 'responsaveis',
   status: 'status_lancamento',
   tiposPagamento: 'tipos_pagamento',
-  lancamentos: 'lancamentos'
+  lancamentos: 'lancamentos',
+  recorrentes: 'recorrentes'
 };
 
 /* ── Carga inicial (assíncrona) ── */
@@ -39,7 +41,8 @@ function initFinanceiro(){
     db.from(TABLES.lancamentos).order('data',{ascending:false}).selectAll('*'),
     db.from('budget_plan').select('*'),
     db.from('budget_income').select('*'),
-    db.from('goals').select('id,title,area,progress,target,hz')
+    db.from('goals').select('id,title,area,progress,target,hz'),
+    db.from(TABLES.recorrentes).select('*')
   ]).then(function(res){
     _cache.categorias = (res[0]||[]).map(decorateCategoria);
     _cache.subcategorias = (res[1]||[]).map(decorateSubcategoria);
@@ -50,6 +53,7 @@ function initFinanceiro(){
     _cache.lancamentos = (res[5]||[]).map(normalizeEntryLocal);
     _cache.budgetPlan = res[6]||[];
     _cache.budgetIncome = (res[7]||[])[0]||null;
+    _cache.recorrentes = res[9]||[];
   });
 }
 
@@ -238,6 +242,29 @@ function removeLancamento(id){
   });
 }
 
+/* ── Recorrentes cadastrados manualmente (assinaturas, contas fixas...) ── */
+function getRecorrentes(){ return _cache.recorrentes; }
+function addRecorrente(r){
+  var row = {
+    nome: r.nome,
+    categoria_id: r.categoriaId || null,
+    responsavel_id: r.responsavelId || null,
+    valor_esperado: (r.valorEsperado === undefined || r.valorEsperado === null || isNaN(r.valorEsperado)) ? null : r.valorEsperado,
+    dia_venc: r.diaVenc || null,
+    ativo: true
+  };
+  return db.from(TABLES.recorrentes).insert(row).then(function(rows){
+    var created = (rows||[])[0];
+    _cache.recorrentes.push(created);
+    return created;
+  });
+}
+function removeRecorrente(id){
+  return db.from(TABLES.recorrentes).eq('id', id).delete().then(function(){
+    _cache.recorrentes = _cache.recorrentes.filter(function(r){ return r.id !== id; });
+  });
+}
+
 /* ── Planejador 50/20/30 (budget_plan) ── */
 function getBudgetPlan(){ return _cache.budgetPlan; }
 function getBudgetPlanValue(cat, month){
@@ -338,6 +365,7 @@ window.StorageService = {
   getStatus, addStatus, updateStatus, removeStatus,
   getTiposPagamento, addTipoPagamento, updateTipoPagamento, removeTipoPagamento,
   getLancamentos, addLancamento, updateLancamento, removeLancamento,
+  getRecorrentes, addRecorrente, removeRecorrente,
   getBudgetPlan, getBudgetPlanValue, setBudgetPlanValue,
   getBudgetIncome, setBudgetIncome,
   getGoals, getMetasFinanceirasVinculadas, sincronizarProgressoMetas
