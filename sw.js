@@ -1,5 +1,5 @@
 /* ── Vivr — Service Worker ── */
-var CACHE = 'vivr-v6';
+var CACHE = 'vivr-v7';
 
 var SHELL = [
   '/vivr/',
