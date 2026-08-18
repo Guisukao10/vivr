@@ -538,8 +538,10 @@ const AnalisePage = (function () {
     el.innerHTML = itens.map((it) => {
       const nomeNorm = (it.nome || '').toLowerCase().trim();
       const pago = lancamentosMes.find((l) => {
-        const d = (l.descricao || '').toLowerCase().trim();
-        const matchNome = d && nomeNorm && (d === nomeNorm || d.indexOf(nomeNorm) !== -1 || nomeNorm.indexOf(d) !== -1);
+        // muitas cobranças de assinatura chegam com o app-store como descrição
+        // (ex: "APPLE.COM/BILL") e o nome real só na observação — por isso olha os dois.
+        const d = ((l.descricao || '') + ' ' + (l.observacao || '')).toLowerCase().trim();
+        const matchNome = d && nomeNorm && (d.indexOf(nomeNorm) !== -1 || (nomeNorm.length > 2 && nomeNorm.indexOf(d) !== -1));
         const matchCat = !it.categoriaId || l.categoriaId === it.categoriaId;
         return matchNome && matchCat;
       });
@@ -581,6 +583,31 @@ const AnalisePage = (function () {
   // não dos lançamentos — por isso é buscada à parte, direto do CSV ao vivo.
   const RESERVA_CSV_URL = 'https://docs.google.com/spreadsheets/d/1PnUe5-lId9eep3jb0AqOczUdCJHWtXQd6CEcLrcYN6I/export?format=csv&gid=1823976397';
   const META_RESERVA_2026 = 50000;
+  // Taxa padrão só de referência (CDB ~100% CDI) — editável, porque a taxa real
+  // muda com o tempo e com o banco; isto é uma projeção, não uma cotação ao vivo.
+  const CDB_PADRAO_ANUAL = 10.5;
+  let _reservaTotal = 0;
+
+  function calcMontante(principal, taxaAnualPct, meses) {
+    const i = taxaAnualPct / 100 / 12;
+    return principal * Math.pow(1 + i, meses);
+  }
+
+  function renderRendimentoBox() {
+    const box = document.getElementById('rendimentoBox');
+    if (!box) return;
+    const taxaEl = document.getElementById('cdbTaxa');
+    const taxa = taxaEl ? (parseFloat(taxaEl.value) || 0) : CDB_PADRAO_ANUAL;
+    const m1 = calcMontante(_reservaTotal, taxa, 1);
+    const m12 = calcMontante(_reservaTotal, taxa, 12);
+    box.innerHTML = `<div class="fin-hero-breakdown" style="margin-top:8px">
+      <div>Em 1 mês<strong>${Utils.formatCurrency(m1)}</strong></div>
+      <div>Em 12 meses<strong>${Utils.formatCurrency(m12)}</strong></div>
+      <div>Rendimento em 12 meses<strong>${Utils.formatCurrency(m12 - _reservaTotal)}</strong></div>
+    </div>`;
+  }
+
+  function recalcularRendimento() { renderRendimentoBox(); }
 
   function parseValorBR(s) {
     const c = String(s || '').replace(/"/g, '').replace(/R\$/gi, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
@@ -624,6 +651,7 @@ const AnalisePage = (function () {
         porPessoa[nome] = parseValorBR(cols[1]);
       });
       const total = Object.values(porPessoa).reduce((s, v) => s + v, 0);
+      _reservaTotal = total;
       const pct = Math.max(0, Math.min(100, Math.round((total / META_RESERVA_2026) * 100)));
       const breakdown = Object.entries(porPessoa)
         .map(([nome, v]) => `<div>${nome}<strong>${Utils.formatCurrency(v)}</strong></div>`).join('');
@@ -638,7 +666,16 @@ const AnalisePage = (function () {
           <div>Meta 2026<strong>${Utils.formatCurrency(META_RESERVA_2026)}</strong></div>
           <div>Falta<strong>${Utils.formatCurrency(Math.max(0, META_RESERVA_2026 - total))}</strong></div>
         </div>
-        <div class="fin-hero-breakdown" style="margin-top:6px">${breakdown}</div>`;
+        <div class="fin-hero-breakdown" style="margin-top:6px">${breakdown}</div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #eee">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <label style="font-size:.76rem;color:var(--color-text-secondary)">📈 Rendimento estimado — CDB a</label>
+            <input type="number" step="0.1" id="cdbTaxa" value="${CDB_PADRAO_ANUAL}" oninput="AnalisePage.recalcularRendimento()" style="width:70px;padding:4px 6px;border:1px solid var(--color-border);border-radius:5px;font-size:.78rem"/>
+            <span style="font-size:.76rem;color:var(--color-text-secondary)">% a.a. (ajuste pra taxa real do seu CDB — isto é só uma projeção)</span>
+          </div>
+          <div id="rendimentoBox"></div>
+        </div>`;
+      renderRendimentoBox();
     }).catch(() => {
       el.innerHTML = '<p style="font-size:.78rem;color:#B91C1C">Não consegui buscar o valor guardado agora.</p>';
     });
@@ -789,7 +826,7 @@ const AnalisePage = (function () {
     }
   }
 
-  return { init, addRecorrente, removeRecorrente };
+  return { init, addRecorrente, removeRecorrente, recalcularRendimento };
 })();
 
 window.AnalisePage = AnalisePage;
