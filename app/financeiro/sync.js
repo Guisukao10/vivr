@@ -4,7 +4,9 @@
 (function () {
 'use strict';
 
-var PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSHxO0A4QTL9fxCK5OglA3Jcat2gfH4nUP1zoYbMqCdBS-F3fHpZTQ4mL2VYww9CMMBzbXz24zGhmEc/pub?output=csv';
+// Links diretos de exportação (não dependem de "Publicar na web", refletem a planilha ao vivo)
+var DESPESAS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1PnUe5-lId9eep3jb0AqOczUdCJHWtXQd6CEcLrcYN6I/export?format=csv&gid=1589078644';
+var RECEITAS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1PnUe5-lId9eep3jb0AqOczUdCJHWtXQd6CEcLrcYN6I/export?format=csv&gid=792665561';
 
 function parseValor(s) {
   var c = String(s).replace(/R\$/gi, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
@@ -45,43 +47,58 @@ function acharPorNome(lista, nome) {
   return achado ? achado.id : null;
 }
 
-function buscarLinhasPlanilha() {
-  return fetch(PLANILHA_CSV_URL).then(function (r) {
+function linhasDoCSV(texto, tipoLancamento) {
+  var linhas = parseCSV(texto).filter(function (r) { return r.some(function (c) { return c.trim(); }); });
+  if (linhas.length < 2) return [];
+  var header = linhas[0].map(function (h) { return h.trim(); });
+  var idx = {
+    data: header.indexOf('Data'), resp: header.indexOf('Responsavel'), cat: header.indexOf('Categoria'),
+    pag: header.indexOf('Tipo'), desc: header.indexOf('Descrição'), valor: header.indexOf('Valor (R$)'),
+    obs: header.indexOf('Observação')
+  };
+  if (idx.data === -1 || idx.valor === -1) throw new Error('não reconheci as colunas da planilha');
+
+  var categorias = StorageService.getCategorias().filter(function (c) { return c.tipo === tipoLancamento; });
+  var outros = categorias.find(function (c) { return c.nome.toLowerCase() === 'outros'; });
+  var responsaveis = StorageService.getResponsaveis();
+  // despesas usam só formas de pagamento (Crédito/Débito/Ticket); receitas usam a fonte (Alliage, Elaine, Pix...)
+  var pagamentos = tipoLancamento === 'despesa'
+    ? StorageService.getTiposPagamento().filter(function (p) { return p.tipo === 'pagamento'; })
+    : StorageService.getTiposPagamento();
+
+  var candidatos = [];
+  linhas.slice(1).forEach(function (cols) {
+    var data = parseData(cols[idx.data]);
+    var valor = parseValor(cols[idx.valor]);
+    if (!data || valor === null || valor === 0) return;
+    var descCurta = (idx.desc !== -1 ? cols[idx.desc] : '' || '').trim();
+    var obsCurta = (idx.obs !== -1 ? cols[idx.obs] : '' || '').trim();
+    var descricao = obsCurta || descCurta || (idx.cat !== -1 ? cols[idx.cat] : '') || 'Sem descrição';
+    var obs = (obsCurta && descCurta && normalizarNome(obsCurta) !== normalizarNome(descCurta)) ? descCurta : '';
+    candidatos.push({
+      data: data, descricao: descricao, obs: obs, valor: valor, tipo: tipoLancamento,
+      categoriaId: acharPorNome(categorias, idx.cat !== -1 ? cols[idx.cat] : '') || (outros ? outros.id : null),
+      responsavelId: acharPorNome(responsaveis, idx.resp !== -1 ? cols[idx.resp] : ''),
+      pagamentoId: acharPorNome(pagamentos, idx.pag !== -1 ? cols[idx.pag] : ''),
+      selecionado: true
+    });
+  });
+  return candidatos;
+}
+
+function buscarCSV(url) {
+  return fetch(url).then(function (r) {
     if (!r.ok) throw new Error('não consegui abrir a planilha (HTTP ' + r.status + ')');
     return r.text();
-  }).then(function (texto) {
-    var linhas = parseCSV(texto).filter(function (r) { return r.some(function (c) { return c.trim(); }); });
-    if (linhas.length < 2) throw new Error('a planilha voltou vazia');
-    var header = linhas[0].map(function (h) { return h.trim(); });
-    var idx = {
-      data: header.indexOf('Data'), resp: header.indexOf('Responsavel'), cat: header.indexOf('Categoria'),
-      pag: header.indexOf('Tipo'), desc: header.indexOf('Descrição'), valor: header.indexOf('Valor (R$)'),
-      obs: header.indexOf('Observação')
-    };
-    if (idx.data === -1 || idx.valor === -1) throw new Error('não reconheci as colunas da planilha');
+  });
+}
 
-    var categorias = StorageService.getCategorias().filter(function (c) { return c.tipo === 'despesa'; });
-    var outros = categorias.find(function (c) { return c.nome.toLowerCase() === 'outros'; });
-    var responsaveis = StorageService.getResponsaveis();
-    var pagamentos = StorageService.getTiposPagamento().filter(function (p) { return p.tipo === 'pagamento'; });
-
-    var candidatos = [];
-    linhas.slice(1).forEach(function (cols) {
-      var data = parseData(cols[idx.data]);
-      var valor = parseValor(cols[idx.valor]);
-      if (!data || valor === null || valor === 0) return;
-      var descCurta = (idx.desc !== -1 ? cols[idx.desc] : '' || '').trim();
-      var obsCurta = (idx.obs !== -1 ? cols[idx.obs] : '' || '').trim();
-      var descricao = obsCurta || descCurta || 'Sem descrição';
-      var obs = (obsCurta && descCurta && normalizarNome(obsCurta) !== normalizarNome(descCurta)) ? descCurta : '';
-      candidatos.push({
-        data: data, descricao: descricao, obs: obs, valor: valor, tipo: 'despesa',
-        categoriaId: acharPorNome(categorias, idx.cat !== -1 ? cols[idx.cat] : '') || (outros ? outros.id : null),
-        responsavelId: acharPorNome(responsaveis, idx.resp !== -1 ? cols[idx.resp] : ''),
-        pagamentoId: acharPorNome(pagamentos, idx.pag !== -1 ? cols[idx.pag] : ''),
-        selecionado: true
-      });
-    });
+function buscarLinhasPlanilha() {
+  return Promise.all([buscarCSV(DESPESAS_CSV_URL), buscarCSV(RECEITAS_CSV_URL)]).then(function (textos) {
+    var despesas = linhasDoCSV(textos[0], 'despesa');
+    var receitas = linhasDoCSV(textos[1], 'receita');
+    var candidatos = despesas.concat(receitas);
+    if (!candidatos.length) throw new Error('a planilha voltou vazia');
     return candidatos;
   });
 }
@@ -102,7 +119,8 @@ var linhas = [];
 function renderRevisao() {
   var categorias = StorageService.getCategorias();
   var responsaveis = StorageService.getResponsaveis();
-  var pagamentos = StorageService.getTiposPagamento().filter(function (p) { return p.tipo === 'pagamento'; });
+  var todosPagamentos = StorageService.getTiposPagamento();
+  var pagamentosDespesa = todosPagamentos.filter(function (p) { return p.tipo === 'pagamento'; });
   var corpo = document.getElementById('syncCorpo');
   corpo.innerHTML = linhas.map(function (l, i) {
     var catOpts = categorias.filter(function (c) { return c.tipo === l.tipo; }).map(function (c) {
@@ -111,6 +129,7 @@ function renderRevisao() {
     var respOpts = '<option value="">—</option>' + responsaveis.map(function (r) {
       return '<option value="' + r.id + '"' + (r.id === l.responsavelId ? ' selected' : '') + '>' + r.nome + '</option>';
     }).join('');
+    var pagamentos = l.tipo === 'despesa' ? pagamentosDespesa : todosPagamentos;
     var pagOpts = pagamentos.map(function (p) {
       return '<option value="' + p.id + '"' + (p.id === l.pagamentoId ? ' selected' : '') + '>' + p.nome + '</option>';
     }).join('');
